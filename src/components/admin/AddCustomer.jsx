@@ -6,8 +6,8 @@ export default function AddCustomer() {
   const { addCustomer } = useApp()
   const toast = useToast()
 
-  const onSubmit = (form) => {
-    const result = addCustomer(form)
+  const onSubmit = async (form) => {
+    const result = await addCustomer(form)
     if (result.ok) toast(`${form.name.trim()} added.`)
     return result
   }

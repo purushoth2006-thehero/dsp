@@ -37,17 +37,17 @@ export default function Customers() {
   const remove = async (c) => {
     const confirmed = await ask({
       title: `Remove ${c.name}?`,
-      message: 'Their appointments will be deleted too. This cannot be undone.',
+      message: 'Their lessons will be deleted too. This cannot be undone.',
       confirmLabel: 'Remove',
       danger: true,
     })
     if (!confirmed) return
-    removeCustomer(c.id)
-    toast(`${c.name} removed.`)
+    const result = await removeCustomer(c.id)
+    toast(result.ok ? `${c.name} removed.` : result.error, result.ok ? 'ok' : 'error')
   }
 
-  const saveEdit = (form) => {
-    const result = updateCustomer(editing.id, form)
+  const saveEdit = async (form) => {
+    const result = await updateCustomer(editing.id, form)
     if (result.ok) {
       toast('Customer updated.')
       setEditing(null)

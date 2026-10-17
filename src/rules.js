@@ -8,9 +8,23 @@ export const ATTENDANCE = { PRESENT: 'present', ABSENT: 'absent' }
 export const ROLES = { ADMIN: 'admin', CUSTOMER: 'customer' }
 export const MIN_PASSWORD = 6
 
-// ---------- dates and times (always the user's LOCAL time, never UTC) ----------
+// ---------- dates and times (wall-clock time at the school, never UTC) ----------
+
+export const SCHOOL_TZ = 'Asia/Kolkata'
 
 const pad = (n) => String(n).padStart(2, '0')
+
+// The current wall-clock time at the school, as a Date whose local getters (getHours, getDate...)
+// return the school's time. The server runs in UTC, so "has this slot passed?" must use this.
+export function nowInZone(tz = SCHOOL_TZ, base = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(base)
+  const get = (type) => Number(parts.find((p) => p.type === type).value)
+  return new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'))
+}
 
 export const toLocalDate = (d = new Date()) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`

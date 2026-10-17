@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../../state/appContext.js'
+import { useToast } from '../../ui/toastContext.js'
 import { Field } from '../../ui/Field.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, PLACES, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate,
+  ATTENDANCE, PLACES, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
 
 const COLUMNS = [
@@ -17,6 +18,7 @@ const COLUMNS = [
 
 export default function Attendance() {
   const { data, setAttendance } = useApp()
+  const toast = useToast()
   const [filterDate, setFilterDate] = useState('')
   const [filterPlace, setFilterPlace] = useState('')
   const [query, setQuery] = useState('')
@@ -43,10 +45,13 @@ export default function Attendance() {
   }
 
   // Click the active button again to clear the mark.
-  const toggle = (appt, value) => setAttendance(appt.id, appt.attendance === value ? null : value)
+  const toggle = async (appt, value) => {
+    const result = await setAttendance(appt.id, appt.attendance === value ? null : value)
+    if (!result.ok) toast(result.error, 'error')
+  }
 
   const exportCsv = () => {
-    downloadTextFile(`attendance-${filterDate || toLocalDate()}.csv`, toCsv(rows, COLUMNS))
+    downloadTextFile(`attendance-${filterDate || toLocalDate(nowInZone())}.csv`, toCsv(rows, COLUMNS))
   }
 
   return (
@@ -74,8 +79,8 @@ export default function Attendance() {
       {rows.length === 0 && (
         <p className="empty">
           {data.appointments.length === 0
-            ? 'No appointments yet. Customers can book lessons from their own portal.'
-            : <>No appointments match these filters. <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button></>}
+            ? 'No lessons scheduled yet. Use the Lessons page to schedule one.'
+            : <>No lessons match these filters. <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button></>}
         </p>
       )}
 

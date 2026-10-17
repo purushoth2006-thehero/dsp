@@ -4,6 +4,7 @@ const LINKS = [
   { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/customers', label: 'Customers' },
   { to: '/admin/add', label: 'Add customer' },
+  { to: '/admin/lessons', label: 'Lessons' },
   { to: '/admin/attendance', label: 'Attendance' },
 ]
 

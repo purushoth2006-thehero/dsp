@@ -4,12 +4,12 @@ import { homeFor, useApp } from './state/appContext.js'
 import ToastProvider from './ui/ToastProvider.jsx'
 import AppShell from './components/AppShell.jsx'
 import Login from './components/Login.jsx'
-import Register from './components/Register.jsx'
 import CustomerPortal from './components/CustomerPortal.jsx'
 import AdminLayout from './components/admin/AdminLayout.jsx'
 import Dashboard from './components/admin/Dashboard.jsx'
 import Customers from './components/admin/Customers.jsx'
 import AddCustomer from './components/admin/AddCustomer.jsx'
+import Lessons from './components/admin/Lessons.jsx'
 import Attendance from './components/admin/Attendance.jsx'
 import { ROLES } from './rules.js'
 
@@ -19,7 +19,7 @@ function Home() {
   return <Navigate to={homeFor(session)} replace />
 }
 
-// Login and register pages are for signed-out visitors only.
+// The login page is for signed-out visitors only.
 function GuestOnly({ children }) {
   const { session } = useApp()
   return session ? <Navigate to={homeFor(session)} replace /> : children
@@ -33,31 +33,40 @@ function RequireRole({ role }) {
   return <AppShell />
 }
 
+function AppRoutes() {
+  const { loading } = useApp()
+  if (loading) return <div className="splash" role="status">Loading…</div>
+
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
+
+      <Route element={<RequireRole role={ROLES.CUSTOMER} />}>
+        <Route path="/customer" element={<CustomerPortal />} />
+      </Route>
+
+      <Route path="/admin" element={<RequireRole role={ROLES.ADMIN} />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="add" element={<AddCustomer />} />
+          <Route path="lessons" element={<Lessons />} />
+          <Route path="attendance" element={<Attendance />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AppProvider>
         <ToastProvider>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
-            <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />
-
-            <Route element={<RequireRole role={ROLES.CUSTOMER} />}>
-              <Route path="/customer" element={<CustomerPortal />} />
-            </Route>
-
-            <Route path="/admin" element={<RequireRole role={ROLES.ADMIN} />}>
-              <Route element={<AdminLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="customers" element={<Customers />} />
-                <Route path="add" element={<AddCustomer />} />
-                <Route path="attendance" element={<Attendance />} />
-              </Route>
-            </Route>
-
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AppRoutes />
         </ToastProvider>
       </AppProvider>
     </BrowserRouter>

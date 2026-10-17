@@ -1,12 +1,13 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { ToastContext } from './toastContext.js'
-import { uid } from '../store.js'
 
 export default function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
+  const nextId = useRef(0)
 
   const push = useCallback((text, kind = 'ok') => {
-    const id = uid('t')
+    nextId.current += 1
+    const id = nextId.current
     setToasts((list) => [...list, { id, text, kind }])
     setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 3500)
   }, [])

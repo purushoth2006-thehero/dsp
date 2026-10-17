@@ -1,18 +1,15 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useApp } from '../state/appContext.js'
 import { Field, PasswordInput } from '../ui/Field.jsx'
 import { BRAND, ROLES } from '../rules.js'
 
-// Demo logins are shown only in development, or when VITE_SHOW_DEMO=true is set at build time.
-const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO === 'true'
-
 export default function Login() {
-  const { loginAdmin, loginCustomer } = useApp()
+  const { loginAdmin, loginCustomer, serverError } = useApp()
   const [role, setRole] = useState(ROLES.CUSTOMER)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const switchRole = (next) => {
     setRole(next)
@@ -20,10 +17,14 @@ export default function Login() {
     setError('')
   }
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     setError('')
-    const result = role === ROLES.ADMIN ? loginAdmin(username, password) : loginCustomer(username, password)
+    setBusy(true)
+    const result = role === ROLES.ADMIN
+      ? await loginAdmin(username, password)
+      : await loginCustomer(username, password)
+    setBusy(false)
     if (!result.ok) setError(result.error)
   }
 
@@ -33,6 +34,8 @@ export default function Login() {
     <main className="login-wrap">
       <div className="login-card">
         <h1><span aria-hidden="true">🚗</span> {BRAND}</h1>
+
+        {serverError && <p className="banner" role="alert">{serverError}</p>}
 
         <div className="tabs" role="group" aria-label="Sign in as">
           <button type="button" className={!isAdmin ? 'active' : ''} aria-pressed={!isAdmin} onClick={() => switchRole(ROLES.CUSTOMER)}>
@@ -57,20 +60,11 @@ export default function Login() {
           </Field>
 
           {error && <p className="error" role="alert">{error}</p>}
-          <button className="primary" type="submit">Sign in</button>
+          <button className="primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
 
         {!isAdmin && (
-          <p className="auth-alt">
-            New student? <Link to="/register">Create an account</Link>
-          </p>
-        )}
-
-        {SHOW_DEMO && (
-          <p className="hint">
-            Demo admin: <b>admin / admin123</b><br />
-            Demo customer: <b>alice@example.com / pass123</b>
-          </p>
+          <p className="hint">Your login is created by the school office. Please contact them if you need one.</p>
         )}
       </div>
     </main>
