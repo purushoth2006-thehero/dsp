@@ -1,6 +1,6 @@
 // Pure business rules: no React and no browser APIs, so everything here is easy to test.
 
-export const BRAND = 'DriveEasy Driving School'
+export const BRAND = 'Sridhar Driving School'
 export const TOTAL_LESSONS = 20
 export const TIME_SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
 export const PLACES = ['Downtown Center', 'North Branch', 'Airport Branch']
