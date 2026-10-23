@@ -3,9 +3,9 @@
 export const BRAND = 'Sridhar Driving School'
 export const TOTAL_LESSONS = 20
 export const TIME_SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
-export const PLACES = ['Downtown Center', 'North Branch', 'Airport Branch']
+export const PLACES = ['Mcity_Petrol_Bunk', 'ZeroPoint', 'Potheri']
 export const ATTENDANCE = { PRESENT: 'present', ABSENT: 'absent' }
-export const ROLES = { ADMIN: 'admin', CUSTOMER: 'customer' }
+export const ROLES = { ADMIN: 'prasad', CUSTOMER: 'customer' }
 export const MIN_PASSWORD = 6
 
 // ---------- dates and times (wall-clock time at the school, never UTC) ----------
