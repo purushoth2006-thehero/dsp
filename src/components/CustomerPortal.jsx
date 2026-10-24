@@ -5,7 +5,7 @@ import useConfirm from '../ui/useConfirm.jsx'
 import LessonForm from './LessonForm.jsx'
 import useNow from '../ui/useNow.js'
 import {
-  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
+  ATTENDANCE, BRAND, MAX_UPCOMING_PER_CUSTOMER, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
 } from '../rules.js'
 
 // Customers book, move and cancel their own lessons and follow their progress.
@@ -55,7 +55,7 @@ export default function CustomerPortal() {
   return (
     <main className="page top">
       <div className="stack-col readable">
-        <section className="card">
+        <section className="card no-print">
           <h2>Hello, {customer?.name}</h2>
           <p className="muted">
             Book your lessons below. Your course is {TOTAL_LESSONS} lessons, and your profile is removed
@@ -63,7 +63,7 @@ export default function CustomerPortal() {
           </p>
         </section>
 
-        <section className="card">
+        <section className="card no-print">
           <h2>{editing ? 'Change lesson time' : 'Book a lesson'}</h2>
           {full && !editing ? (
             <p className="notice">All {TOTAL_LESSONS} lessons of your course are booked. Nothing more to book.</p>
@@ -78,7 +78,7 @@ export default function CustomerPortal() {
           {editing && atLimit && <p className="muted">Pick a new time for this lesson.</p>}
         </section>
 
-        <section className="card">
+        <section className="card no-print">
           <h2>My progress</h2>
           <p className="big">{attended} <span>of {TOTAL_LESSONS} lessons attended</span></p>
           <div
@@ -94,9 +94,10 @@ export default function CustomerPortal() {
           <p className="muted">{upcoming.length} upcoming · {missed} missed · {Math.max(0, TOTAL_LESSONS - booked)} still to book</p>
         </section>
 
-        <section className="card">
+        <section className="card no-print">
           <div className="row">
             <h2>My lessons</h2>
+            <button type="button" className="ghost" onClick={() => window.print()} disabled={mine.length === 0}>Print schedule</button>
             <div className="tabs compact" role="group" aria-label="Lesson list">
               <button type="button" className={view === 'upcoming' ? 'active' : ''} aria-pressed={view === 'upcoming'} onClick={() => setView('upcoming')}>
                 Upcoming ({upcoming.length})
@@ -163,6 +164,26 @@ export default function CustomerPortal() {
               )}
             </>
           )}
+        </section>
+        <section className="print-only">
+          <h2>{BRAND}: lesson schedule</h2>
+          <p>{customer?.name}{customer?.phone ? `, ${customer.phone}` : ''}</p>
+          <table className="stack">
+            <thead>
+              <tr><th>No.</th><th>Date</th><th>Time</th><th>Place</th><th>Attendance</th></tr>
+            </thead>
+            <tbody>
+              {mine.map((a, i) => (
+                <tr key={a.id}>
+                  <td>{i + 1}</td>
+                  <td>{formatDate(a.date)}</td>
+                  <td>{formatTime(a.time)}</td>
+                  <td>{a.place}</td>
+                  <td>{a.attendance ?? (isPast(a.date, a.time, now) ? 'not marked' : 'upcoming')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
       </div>
       {dialog}
