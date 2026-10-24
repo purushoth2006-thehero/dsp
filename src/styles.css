@@ -243,3 +243,9 @@ tr.editing td { background: var(--editing); }
   table.stack td::before { content: none; }
   table.stack th { background: #e8e8e8; }
 }
+.print-never { display: none !important; }
+@media print {
+  .print-page { break-after: page; margin-bottom: 24px; }
+  .print-page:last-child { break-after: auto; }
+  .print-page h2 { margin: 0 0 10px; }
+}
