@@ -100,10 +100,22 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
 
 // ---------- appointment rules ----------
 
+// Days the school is closed for lessons (0 = Sunday ... 3 = Wednesday). Change this list to change the weekly leave.
+export const CLOSED_WEEKDAYS = [3]
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+export function closedDayName(date) {
+  const [y, m, d] = String(date).split('-').map(Number)
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+  return CLOSED_WEEKDAYS.includes(day) ? DAY_NAMES[day] : null
+}
+
 // Returns null when the slot is free, otherwise { code, message }.
 export function getSlotConflict(slot, appointments, { customerId, ignoreId = null, now = new Date() } = {}) {
   const { date, time, place } = slot
   if (!date || !time || !place) return { code: 'incomplete', message: 'Please choose a date, time and place.' }
+  const closed = closedDayName(date)
+  if (closed) return { code: 'closed', message: `The school is closed on ${closed}s. Please choose another day.` }
   if (isPast(date, time, now)) {
     return { code: 'past', message: 'That time has already passed. Please choose a later slot.' }
   }

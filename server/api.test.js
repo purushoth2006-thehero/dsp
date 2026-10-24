@@ -8,7 +8,7 @@ import { MAX_UPCOMING_PER_CUSTOMER, PLACES, TIME_SLOTS, TOTAL_LESSONS } from '..
 // Saturday 17 Oct 2026, 10:00 at the school
 const NOW = new Date(2026, 9, 17, 10, 0)
 const FUTURE = '2026-10-20'
-const FUTURE2 = '2026-10-21'
+const FUTURE2 = '2026-10-22'
 
 // ---------- a tiny fake of Upstash's REST API, so the real UpstashStore code can be tested ----------
 
@@ -159,7 +159,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
 
   // The i-th of many distinct slots (8 a day), so one customer can be given a whole course of lessons.
   const slotNumber = (i) => ({
-    date: `2026-11-${String(1 + Math.floor(i / TIME_SLOTS.length)).padStart(2, '0')}`,
+    date: `2026-11-${String(5 + Math.floor(i / TIME_SLOTS.length)).padStart(2, '0')}`,
     time: TIME_SLOTS[i % TIME_SLOTS.length],
     place: PLACES[0],
   })
@@ -276,6 +276,17 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await customerA.call('POST', '/api/customers', { name: 'Hacker', email: 'h@example.com', phone: '9000000001', password: 'secret123' })).status).toBe(403)
     expect((await customerA.call('PUT', `/api/customers/${b.id}`, { name: 'Hacked', email: b.email, phone: b.phone, password: 'hacked-pass' })).status).toBe(403)
     expect((await customerA.call('DELETE', `/api/customers/${b.id}`)).status).toBe(403)
+  })
+
+  it('does not allow lessons on the weekly leave day', async () => {
+    const admin = await adminBrowser()
+    const c = await addCustomer(admin)
+    const res = await book(admin, c.id, { date: '2026-10-21' }) // a Wednesday
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/closed on Wednesdays/)
+    const ok = await book(admin, c.id, { date: '2026-10-22' })
+    expect(ok.status).toBe(201)
+    expect((await admin.call('PUT', `/api/appointments/${ok.body.appointment.id}`, { date: '2026-10-21', time: '10:00', place: PLACES[0] })).status).toBe(400)
   })
 
   it('lets a customer book, move and cancel their own lessons', async () => {

@@ -4,9 +4,9 @@ import { useToast } from '../ui/toastContext.js'
 import useNow from '../ui/useNow.js'
 import { Field } from '../ui/Field.jsx'
 import { fetchSlots } from '../api.js'
-import { PLACES, TIME_SLOTS, formatDate, formatTime, getSlotConflict, toLocalDate } from '../rules.js'
+import { PLACES, closedDayName, TIME_SLOTS, formatDate, formatTime, getSlotConflict, toLocalDate } from '../rules.js'
 
-const SLOT_NOTE = { past: ' (passed)', booked: ' (booked)', mine: ' (you already have a lesson)' }
+const SLOT_NOTE = { closed: ' (closed)', past: ' (passed)', booked: ' (booked)', mine: ' (you already have a lesson)' }
 const ADMIN_NOTE = { ...SLOT_NOTE, mine: ' (customer has a lesson)' }
 
 // Book a new lesson, or move `editing`. The admin picks the customer; a customer books for themselves.
@@ -114,7 +114,8 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
       </Field>
 
       {checking && <p className="muted">Checking free times…</p>}
-      {noSlots && <p className="error">No free slots on this date at {form.place}. Try another day or place.</p>}
+      {closedDayName(form.date) && <p className="error">The school is closed on {closedDayName(form.date)}s. Please choose another day.</p>}
+      {noSlots && !closedDayName(form.date) && <p className="error">No free slots on this date at {form.place}. Try another day or place.</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
       <div className="form-actions">

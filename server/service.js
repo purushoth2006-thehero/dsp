@@ -49,7 +49,7 @@ function parseSlot(input) {
   return { date, time, place }
 }
 
-const conflictError = (c) => new HttpError(c.code === 'past' || c.code === 'incomplete' ? 400 : 409, c.message)
+const conflictError = (c) => new HttpError(c.code === 'past' || c.code === 'incomplete' || c.code === 'closed' ? 400 : 409, c.message)
 
 const LOCKED_MESSAGE = 'Lessons that have started or been marked cannot be changed.'
 
