@@ -6,7 +6,7 @@ import useConfirm from '../../ui/useConfirm.jsx'
 import useNow from '../../ui/useNow.js'
 import { Field } from '../../ui/Field.jsx'
 import LessonForm from '../LessonForm.jsx'
-import { byDateTime, formatDate, formatTime, isPast } from '../../rules.js'
+import { BRAND, byDateTime, formatDate, formatTime, isPast } from '../../rules.js'
 
 // The admin schedules, moves and cancels every lesson.
 export default function Lessons() {
@@ -48,7 +48,7 @@ export default function Lessons() {
 
   return (
     <div className="split">
-      <section className="card">
+      <section className="card no-print">
         <h2>{editing ? 'Reschedule lesson' : 'Schedule a lesson'}</h2>
 
         {data.customers.length === 0 ? (
@@ -59,27 +59,31 @@ export default function Lessons() {
       </section>
 
       <section className="card">
+        <h2 className="print-only">{BRAND}: lesson schedule{query.trim() ? `, ${query.trim()}` : ''}</h2>
         <div className="toolbar">
           <h2>Upcoming lessons ({upcoming.length})</h2>
           <Field label="Customer">
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name" />
           </Field>
+          <button type="button" className="ghost" onClick={() => window.print()} disabled={upcoming.length === 0}>Print schedule</button>
         </div>
 
         {upcoming.length === 0 && <p className="empty">{query ? 'No lessons match your search.' : 'No upcoming lessons. Schedule one using the form.'}</p>}
         {upcoming.length > 0 && (
           <table className="stack">
             <thead>
-              <tr><th>Customer</th><th>Date</th><th>Time</th><th>Place</th><th><span className="visually-hidden">Actions</span></th></tr>
+              <tr><th className="print-only">No.</th><th>Customer</th><th className="print-only">Mobile</th><th>Date</th><th>Time</th><th>Place</th><th className="no-print"><span className="visually-hidden">Actions</span></th></tr>
             </thead>
             <tbody>
-              {upcoming.map((a) => (
+              {upcoming.map((a, i) => (
                 <tr key={a.id} className={a.id === editing?.id ? 'editing' : ''}>
+                  <td className="print-only">{i + 1}</td>
                   <td data-label="Customer">{nameOf(a.customerId)}</td>
+                  <td className="print-only">{data.customers.find((c) => c.id === a.customerId)?.phone ?? ''}</td>
                   <td data-label="Date">{formatDate(a.date)}</td>
                   <td data-label="Time">{formatTime(a.time)}</td>
                   <td data-label="Place">{a.place}</td>
-                  <td className="row-actions">
+                  <td className="row-actions no-print">
                     <button type="button" className="ghost" onClick={() => setEditing(a)}>Reschedule</button>
                     <button type="button" className="ghost danger" onClick={() => cancel(a)}>Cancel</button>
                   </td>
