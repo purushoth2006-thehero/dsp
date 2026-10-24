@@ -125,7 +125,10 @@ export function createHandler({ env = process.env, store: injectedStore, now } =
     }
 
     await store.del(key)
-    const cookie = buildCookie(COOKIE, signToken(payload, cfg.secret), { maxAge, secure: secureCookie(req) })
+    // The admin cookie has no Max-Age, so the browser deletes it when it is closed. (The token also expires after 12 hours.)
+    const cookie = buildCookie(COOKIE, signToken(payload, cfg.secret), {
+      maxAge: body.role === 'admin' ? undefined : maxAge, secure: secureCookie(req),
+    })
     return send(res, 200, { ok: true }, { 'set-cookie': cookie })
   }
 

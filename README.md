@@ -62,7 +62,7 @@ Changing `ADMIN_PASSWORD` signs the admin out everywhere. Resetting a customer's
 ## Security
 
 - Passwords are stored as salted scrypt hashes, never in plain text, and are checked on the server
-- Sessions use a signed, `HttpOnly`, `SameSite=Lax` cookie (`Secure` on https): 12 hours for the admin, 7 days for customers
+- Sessions use a signed, `HttpOnly`, `SameSite=Lax` cookie (`Secure` on https): the admin is signed out when the browser is closed (and after 12 hours at most), customers stay signed in for 7 days
 - Changes need an `x-dsp` header that other websites cannot add, which blocks cross-site request forgery
 - Sign-in is limited to 10 attempts per 15 minutes per IP address
 - In production the API refuses to start without the admin password, session secret and database

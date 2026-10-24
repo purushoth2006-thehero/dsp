@@ -68,5 +68,5 @@ export function parseCookies(header = '') {
 }
 
 export function buildCookie(name, value, { maxAge, secure }) {
-  return `${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`
+  return `${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/${maxAge == null ? '' : `; Max-Age=${maxAge}`}${secure ? '; Secure' : ''}`
 }

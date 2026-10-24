@@ -81,8 +81,10 @@ async function startApi(store, { env = { NODE_ENV: 'test' } } = {}) {
 // A browser stand-in: keeps its own cookie, like a separate browser would.
 function newBrowser(base) {
   let cookie = ''
+  let lastSet = ''
   return {
     get cookie() { return cookie },
+    get lastSetCookie() { return lastSet },
     set cookie(v) { cookie = v },
     async call(method, path, body, { csrf = true } = {}) {
       const headers = {}
@@ -92,6 +94,7 @@ function newBrowser(base) {
       const res = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
       const set = res.headers.get('set-cookie')
       if (set) {
+        lastSet = set
         const pair = set.split(';')[0]
         cookie = pair.endsWith('=') ? '' : pair
       }
@@ -287,6 +290,17 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const ok = await book(admin, c.id, { date: '2026-10-22' })
     expect(ok.status).toBe(201)
     expect((await admin.call('PUT', `/api/appointments/${ok.body.appointment.id}`, { date: '2026-10-21', time: '10:00', place: PLACES[0] })).status).toBe(400)
+  })
+
+  it('signs the admin out when the browser closes, but keeps customers signed in for a week', async () => {
+    const admin = browser()
+    await admin.call('POST', '/api/login', { role: 'admin', username: 'admin', password: 'admin123' })
+    expect(admin.lastSetCookie).toContain('HttpOnly')
+    expect(admin.lastSetCookie).not.toMatch(/Max-Age/i) // a session cookie: deleted when the browser closes
+
+    const c = await addCustomer(await adminBrowser())
+    const customer = await customerBrowser(c)
+    expect(customer.lastSetCookie).toMatch(/Max-Age=604800/)
   })
 
   it('lets a customer book, move and cancel their own lessons', async () => {
