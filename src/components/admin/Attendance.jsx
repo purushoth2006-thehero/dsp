@@ -5,7 +5,7 @@ import { Field } from '../../ui/Field.jsx'
 import useConfirm from '../../ui/useConfirm.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, PLACES, TOTAL_LESSONS, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
+  ATTENDANCE, BRAND, PLACES, TOTAL_LESSONS, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
 
 const COLUMNS = [
@@ -74,6 +74,7 @@ export default function Attendance() {
 
   return (
     <section className="card">
+      <h2 className="print-only">{BRAND}: attendance{filterDate ? `, ${formatDate(filterDate)}` : ''}{filterPlace ? `, ${filterPlace}` : ''}</h2>
       <div className="toolbar">
         <h2>Attendance ({rows.length})</h2>
         <Field label="Date">
@@ -92,6 +93,9 @@ export default function Attendance() {
         <button type="button" className="ghost" onClick={exportCsv} disabled={rows.length === 0}>
           Export CSV
         </button>
+        <button type="button" className="ghost" onClick={() => window.print()} disabled={rows.length === 0}>
+          Print
+        </button>
       </div>
 
       {rows.length === 0 && (
@@ -105,7 +109,7 @@ export default function Attendance() {
       {rows.length > 0 && (
         <table className="stack">
           <thead>
-            <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th>Mark attendance</th></tr>
+            <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
           </thead>
           <tbody>
             {rows.map((a) => (
@@ -114,7 +118,9 @@ export default function Attendance() {
                 <td data-label="Time">{formatTime(a.time)}</td>
                 <td data-label="Place">{a.place}</td>
                 <td data-label="Customer">{a.customer ? a.customer.name : <i>removed</i>}</td>
-                <td className="actions">
+                <td className="print-only">{a.customer?.phone ?? ''}</td>
+                <td className="print-only">{a.attendance ?? 'not marked'}</td>
+                <td className="actions no-print">
                   <button
                     type="button"
                     className={`mark present ${a.attendance === ATTENDANCE.PRESENT ? 'on' : ''}`}
@@ -133,7 +139,7 @@ export default function Attendance() {
           </tbody>
         </table>
       )}
-      <p className="muted">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their {TOTAL_LESSONS}th lesson is marked present.</p>
+      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their {TOTAL_LESSONS}th lesson is marked present.</p>
       {dialog}
     </section>
   )
