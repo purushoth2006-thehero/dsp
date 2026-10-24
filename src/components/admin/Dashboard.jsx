@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../../state/appContext.js'
 import useNow from '../../ui/useNow.js'
-import { computeStats, formatDate, formatTime, toLocalDate } from '../../rules.js'
+import { PLACES, computeStats, formatDate, formatTime, toLocalDate } from '../../rules.js'
 
 function Stat({ label, value, sub, warn }) {
   return (
@@ -32,6 +32,29 @@ export default function Dashboard() {
         />
         <Stat label="Attendance to mark" value={s.unmarked} sub="past lessons" warn={s.unmarked > 0} />
       </div>
+
+      <section className="card">
+        <h2>Upcoming days <span className="muted">· {s.byDay.length} day{s.byDay.length === 1 ? '' : 's'}, {s.upcoming} lesson{s.upcoming === 1 ? '' : 's'}</span></h2>
+        {s.byDay.length === 0 ? <p className="empty">No upcoming lessons.</p> : (
+          <table className="stack">
+            <thead>
+              <tr><th>Date</th><th>Lessons</th>{PLACES.map((p) => <th key={p}>{p}</th>)}</tr>
+            </thead>
+            <tbody>
+              {s.byDay.map((d) => (
+                <tr key={d.date}>
+                  <td data-label="Date">{formatDate(d.date)}{d.date === toLocalDate(now) ? ' (today)' : ''}</td>
+                  <td data-label="Lessons"><b>{d.count}</b></td>
+                  {d.byPlace.map((p) => <td key={p.place} data-label={p.place}>{p.count || '–'}</td>)}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr><th>Total</th><th>{s.upcoming}</th>{s.byPlace.map((p) => <th key={p.place}>{p.count}</th>)}</tr>
+            </tfoot>
+          </table>
+        )}
+      </section>
 
       <div className="two-col">
         <section className="card">

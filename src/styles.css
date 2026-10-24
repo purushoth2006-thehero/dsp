@@ -121,6 +121,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   border-radius: 8px; padding: 10px 12px; font-size: 14px; margin: 0 0 12px;
 }
 .page { padding: 0 24px 24px; }
+.stats + .card, .card + .two-col { margin-bottom: 20px; }
 .two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
 .card {
   background: var(--surface); padding: 20px; border-radius: 12px;

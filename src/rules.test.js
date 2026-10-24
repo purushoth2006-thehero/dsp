@@ -124,6 +124,11 @@ describe('computeStats', () => {
       { place: PLACES[0], count: 1 },
       { place: PLACES[1], count: 1 },
     ])
+    // Upcoming lessons day by day: the rest of today (11:00) and tomorrow.
+    expect(s.byDay).toEqual([
+      { date: '2026-10-17', count: 1, byPlace: [{ place: PLACES[0], count: 1 }, { place: PLACES[1], count: 0 }] },
+      { date: '2026-10-18', count: 1, byPlace: [{ place: PLACES[0], count: 0 }, { place: PLACES[1], count: 1 }] },
+    ])
   })
 
   it('has no rate before any attendance is marked', () => {

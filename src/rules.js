@@ -151,6 +151,11 @@ export function computeStats(data, now = new Date(), places = PLACES) {
     absent,
     rate: marked ? Math.round((present / marked) * 100) : null,
     unmarked: appointments.filter((a) => past(a) && !a.attendance).length,
+    // Upcoming lessons counted day by day (days with no lessons are left out).
+    byDay: [...new Set(upcomingList.map((a) => a.date))].sort().map((date) => {
+      const day = upcomingList.filter((a) => a.date === date)
+      return { date, count: day.length, byPlace: places.map((place) => ({ place, count: day.filter((a) => a.place === place).length })) }
+    }),
     byPlace: places.map((place) => ({ place, count: upcomingList.filter((a) => a.place === place).length })),
   }
 }
