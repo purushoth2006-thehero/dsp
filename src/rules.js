@@ -152,7 +152,13 @@ export function toCsv(rows, columns) {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
+  // Columns marked `text` (dates, mobile numbers) are written as ="value" so Excel keeps them exactly as
+  // written instead of showing ##### for dates or 9.88E+09 for phone numbers.
+  const cell = (c, r) => {
+    const v = c.value(r)
+    return c.text && v ? `"=""${String(v).replace(/"/g, '')}"""` : esc(v)
+  }
   const header = columns.map((c) => esc(c.label)).join(',')
-  const body = rows.map((r) => columns.map((c) => esc(c.value(r))).join(','))
+  const body = rows.map((r) => columns.map((c) => cell(c, r)).join(','))
   return [header, ...body].join('\r\n')
 }

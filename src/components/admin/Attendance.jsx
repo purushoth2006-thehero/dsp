@@ -9,11 +9,11 @@ import {
 } from '../../rules.js'
 
 const COLUMNS = [
-  { label: 'Date', value: (r) => r.date },
-  { label: 'Time', value: (r) => r.time },
+  { label: 'Date', value: (r) => formatDate(r.date), text: true },
+  { label: 'Time', value: (r) => formatTime(r.time), text: true },
   { label: 'Place', value: (r) => r.place },
   { label: 'Customer', value: (r) => r.customer?.name ?? 'removed' },
-  { label: 'Mobile', value: (r) => r.customer?.phone ?? '' },
+  { label: 'Mobile', value: (r) => r.customer?.phone ?? '', text: true },
   { label: 'Attendance', value: (r) => r.attendance ?? 'not marked' },
 ]
 

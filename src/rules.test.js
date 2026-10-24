@@ -147,3 +147,10 @@ describe('toCsv', () => {
     expect(csv.split('\r\n')[1]).toBe(`"'=HYPERLINK(""x"")",'+1`)
   })
 })
+
+describe('toCsv text columns', () => {
+  it('keeps dates and phone numbers as text in Excel', () => {
+    const csv = toCsv([{ phone: '9876543210' }], [{ label: 'Mobile', value: (r) => r.phone, text: true }])
+    expect(csv.split('\r\n')[1]).toBe('"=""9876543210"""')
+  })
+})
