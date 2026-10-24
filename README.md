@@ -1,8 +1,8 @@
-# DriveEasy Driving School
+# Sridhar Driving School
 
 A lesson-scheduling and attendance app for a driving school, built with React, Vite and a small serverless API on Vercel.
 
-**The school office (admin) controls everything.** There is no public sign-up: the admin creates each customer's login, schedules every lesson and marks attendance. Customers sign in to see their own lessons and progress.
+**There is no public sign-up.** The school office (admin) creates each customer's login and marks attendance. Customers sign in to book, change and cancel their own lessons. Light and dark mode are available on every page.
 
 **Live site:** https://dsp-alpha.vercel.app/
 
@@ -14,9 +14,12 @@ A lesson-scheduling and attendance app for a driving school, built with React, V
 - Lessons: schedule, reschedule and cancel lessons for any customer. Taken times are greyed out
 - Attendance: filter by date, place or customer, mark present / absent, export the list to CSV
 
-**Customers** (read-only)
+**Customers**
 - Sign in with email or mobile number and the password the school gave them
+- Book, change and cancel their own lessons (taken times are greyed out; other customers' names are never shown)
 - See upcoming and past lessons, attendance and progress (lessons attended out of 20)
+- At most 5 upcoming lessons at a time, and at most 20 lessons in the course (missed lessons can be replaced)
+- After the 20th lesson is marked present, the profile and its lessons are removed automatically (the admin is asked to confirm first)
 
 **Data is shared.** Everything is stored on the server, so every phone and browser sees the same data. Open pages refresh themselves every 30 seconds.
 
@@ -27,7 +30,7 @@ A lesson-scheduling and attendance app for a driving school, built with React, V
 - A customer cannot have two lessons at the same time. Simultaneous requests cannot double-book a slot
 - Email and mobile number must be unique. Mobile numbers are validated (10-digit Indian format)
 - Lessons that have started or been marked cannot be changed or cancelled
-- Customers can only ever receive their own lessons; every change requires the admin
+- A customer can only see and change their own lessons; customer accounts, attendance and other people's lessons are admin-only
 
 ## Run it on your computer
 

@@ -78,6 +78,15 @@ export function createHandler({ env = process.env, store: injectedStore, now } =
     if (session.role !== 'admin') throw new HttpError(403, 'Only the administrator can do this.')
   }
 
+  async function requireSession(req) {
+    const session = await getSession(req)
+    if (!session) throw new HttpError(401, 'Please sign in.')
+    return session
+  }
+
+  // Who is acting. The service lets a customer touch only their own lessons.
+  const actorOf = (session) => (session.role === 'admin' ? { role: 'admin' } : { role: 'customer', id: session.id })
+
   async function sessionInfo(req, res) {
     const session = await getSession(req)
     if (!session) {
@@ -121,7 +130,8 @@ export function createHandler({ env = process.env, store: injectedStore, now } =
   }
 
   async function route(req, res) {
-    const { pathname } = new URL(req.url, 'http://localhost')
+    const url = new URL(req.url, 'http://localhost')
+    const { pathname } = url
     const path = pathname.replace(/\/+$/, '') || '/'
     const method = req.method ?? 'GET'
 
@@ -163,18 +173,28 @@ export function createHandler({ env = process.env, store: injectedStore, now } =
       throw new HttpError(405, 'Method not allowed.')
     }
 
+    // Which times are taken on one day (no names), so the booking form can grey them out.
+    if (path === '/api/slots') {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed.')
+      const session = await requireSession(req)
+      return send(res, 200, { slots: await service.takenSlots(url.searchParams.get('date'), actorOf(session)) })
+    }
+
+    // Lessons: the admin manages everyone's; a customer manages only their own.
     if (path === '/api/appointments') {
       if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
-      await requireAdmin(req)
-      return send(res, 201, { appointment: await service.bookAppointment(await readJson(req)) })
+      const session = await requireSession(req)
+      return send(res, 201, { appointment: await service.bookAppointment(await readJson(req), actorOf(session)) })
     }
 
     match = path.match(/^\/api\/appointments\/([\w-]+)$/)
     if (match) {
-      await requireAdmin(req)
-      if (method === 'PUT') return send(res, 200, { appointment: await service.rescheduleAppointment(match[1], await readJson(req)) })
+      const session = await requireSession(req)
+      if (method === 'PUT') {
+        return send(res, 200, { appointment: await service.rescheduleAppointment(match[1], await readJson(req), actorOf(session)) })
+      }
       if (method === 'DELETE') {
-        await service.cancelAppointment(match[1])
+        await service.cancelAppointment(match[1], actorOf(session))
         return send(res, 200, { ok: true })
       }
       throw new HttpError(405, 'Method not allowed.')
@@ -185,7 +205,8 @@ export function createHandler({ env = process.env, store: injectedStore, now } =
       if (method !== 'PUT') throw new HttpError(405, 'Method not allowed.')
       await requireAdmin(req)
       const body = await readJson(req)
-      return send(res, 200, { appointment: await service.setAttendance(match[1], body.attendance ?? null) })
+      // { appointment, completed }: `completed` names the customer whose 20th lesson this was (their profile is removed).
+      return send(res, 200, await service.setAttendance(match[1], body.attendance ?? null))
     }
 
     throw new HttpError(404, 'Not found.')

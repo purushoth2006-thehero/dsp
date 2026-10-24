@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../../state/appContext.js'
 import { useToast } from '../../ui/toastContext.js'
 import { Field } from '../../ui/Field.jsx'
+import useConfirm from '../../ui/useConfirm.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, PLACES, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
+  ATTENDANCE, PLACES, TOTAL_LESSONS, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
 
 const COLUMNS = [
@@ -19,6 +20,7 @@ const COLUMNS = [
 export default function Attendance() {
   const { data, setAttendance } = useApp()
   const toast = useToast()
+  const [ask, dialog] = useConfirm()
   const [filterDate, setFilterDate] = useState('')
   const [filterPlace, setFilterPlace] = useState('')
   const [query, setQuery] = useState('')
@@ -46,8 +48,24 @@ export default function Attendance() {
 
   // Click the active button again to clear the mark.
   const toggle = async (appt, value) => {
+    // Attending the last lesson of the course deletes the customer's profile, so ask first.
+    if (value === ATTENDANCE.PRESENT && appt.attendance !== value && appt.customer) {
+      const attended = data.appointments
+        .filter((a) => a.customerId === appt.customerId && a.attendance === ATTENDANCE.PRESENT).length
+      if (attended + 1 >= TOTAL_LESSONS) {
+        const confirmed = await ask({
+          title: `Finish ${appt.customer.name}'s course?`,
+          message: `This is lesson ${TOTAL_LESSONS} of ${TOTAL_LESSONS}. Marking it present removes ${appt.customer.name}'s profile and all their lessons. This cannot be undone.`,
+          confirmLabel: 'Mark present and remove',
+          cancelLabel: 'Not yet',
+          danger: true,
+        })
+        if (!confirmed) return
+      }
+    }
     const result = await setAttendance(appt.id, appt.attendance === value ? null : value)
     if (!result.ok) toast(result.error, 'error')
+    else if (result.completed) toast(`${result.completed.name} finished all ${TOTAL_LESSONS} lessons. Their profile has been removed.`)
   }
 
   const exportCsv = () => {
@@ -115,7 +133,8 @@ export default function Attendance() {
           </tbody>
         </table>
       )}
-      <p className="muted">Tip: click a highlighted button again to clear the mark.</p>
+      <p className="muted">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their {TOTAL_LESSONS}th lesson is marked present.</p>
+      {dialog}
     </section>
   )
 }

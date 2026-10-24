@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state/appContext.js'
+import { useToast } from '../ui/toastContext.js'
+import useConfirm from '../ui/useConfirm.jsx'
+import LessonForm from './LessonForm.jsx'
 import useNow from '../ui/useNow.js'
 import {
-  ATTENDANCE, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
 } from '../rules.js'
 
-// Customers can see their lessons and progress. The school office does all scheduling.
+// Customers book, move and cancel their own lessons and follow their progress.
 export default function CustomerPortal() {
-  const { data, session } = useApp()
+  const { data, session, cancelAppointment } = useApp()
+  const toast = useToast()
+  const [ask, dialog] = useConfirm()
+  const [editing, setEditing] = useState(null)
   const now = useNow()
   const [view, setView] = useState('upcoming')
 
@@ -22,7 +28,29 @@ export default function CustomerPortal() {
 
   const attended = mine.filter((a) => a.attendance === ATTENDANCE.PRESENT).length
   const missed = mine.filter((a) => a.attendance === ATTENDANCE.ABSENT).length
+  const booked = mine.filter((a) => a.attendance !== ATTENDANCE.ABSENT).length
+  const pending = upcoming.filter((a) => !a.attendance).length
+  const full = booked >= TOTAL_LESSONS
+  const atLimit = pending >= MAX_UPCOMING_PER_CUSTOMER
   const percent = Math.min(100, Math.round((attended / TOTAL_LESSONS) * 100))
+
+  const cancel = async (appt) => {
+    const confirmed = await ask({
+      title: 'Cancel this lesson?',
+      message: `${formatDate(appt.date)}, ${formatTime(appt.time)} at ${appt.place}`,
+      confirmLabel: 'Cancel lesson',
+      cancelLabel: 'Keep it',
+      danger: true,
+    })
+    if (!confirmed) return
+    const result = await cancelAppointment(appt.id)
+    if (!result.ok) {
+      toast(result.error, 'error')
+      return
+    }
+    toast('Lesson cancelled.')
+    if (editing?.id === appt.id) setEditing(null)
+  }
 
   return (
     <main className="page top">
@@ -30,8 +58,24 @@ export default function CustomerPortal() {
         <section className="card">
           <h2>Hello, {customer?.name}</h2>
           <p className="muted">
-            Your lessons are scheduled by the school office. To book, change or cancel a lesson, please contact them.
+            Book your lessons below. Your course is {TOTAL_LESSONS} lessons, and your profile is removed
+            automatically once you have attended all {TOTAL_LESSONS}.
           </p>
+        </section>
+
+        <section className="card">
+          <h2>{editing ? 'Change lesson time' : 'Book a lesson'}</h2>
+          {full && !editing ? (
+            <p className="notice">All {TOTAL_LESSONS} lessons of your course are booked. Nothing more to book.</p>
+          ) : atLimit && !editing ? (
+            <p className="notice">
+              You have {MAX_UPCOMING_PER_CUSTOMER} upcoming lessons, which is the most you can book at once.
+              Once you attend or cancel one, you can book another.
+            </p>
+          ) : (
+            <LessonForm key={editing?.id ?? 'new'} customerId={session.id} editing={editing} onDone={() => setEditing(null)} />
+          )}
+          {editing && atLimit && <p className="muted">Pick a new time for this lesson.</p>}
         </section>
 
         <section className="card">
@@ -47,7 +91,7 @@ export default function CustomerPortal() {
           >
             <div style={{ width: `${percent}%` }} />
           </div>
-          <p className="muted">{upcoming.length} upcoming · {missed} missed</p>
+          <p className="muted">{upcoming.length} upcoming · {missed} missed · {Math.max(0, TOTAL_LESSONS - booked)} still to book</p>
         </section>
 
         <section className="card">
@@ -65,11 +109,11 @@ export default function CustomerPortal() {
 
           {view === 'upcoming' ? (
             <>
-              {upcoming.length === 0 && <p className="empty">No upcoming lessons yet. The school office will schedule them.</p>}
+              {upcoming.length === 0 && <p className="empty">No upcoming lessons yet. Book one above.</p>}
               {upcoming.length > 0 && (
                 <table className="stack">
                   <thead>
-                    <tr><th>Date</th><th>Time</th><th>Place</th></tr>
+                    <tr><th>Date</th><th>Time</th><th>Place</th><th><span className="visually-hidden">Actions</span></th></tr>
                   </thead>
                   <tbody>
                     {upcoming.map((a) => (
@@ -77,6 +121,16 @@ export default function CustomerPortal() {
                         <td data-label="Date">{formatDate(a.date)}</td>
                         <td data-label="Time">{formatTime(a.time)}</td>
                         <td data-label="Place">{a.place}</td>
+                        <td className="row-actions">
+                          {a.attendance ? (
+                            <span className={`badge ${a.attendance}`}>{a.attendance}</span>
+                          ) : (
+                            <>
+                              <button type="button" className="ghost" onClick={() => setEditing(a)}>Change</button>
+                              <button type="button" className="ghost danger" onClick={() => cancel(a)}>Cancel</button>
+                            </>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -111,6 +165,7 @@ export default function CustomerPortal() {
           )}
         </section>
       </div>
+      {dialog}
     </main>
   )
 }

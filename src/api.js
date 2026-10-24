@@ -20,3 +20,6 @@ export async function request(method, url, body) {
     return { ok: false, status: 0, error: 'Cannot reach the server. Check your internet connection.', data: null }
   }
 }
+
+// The times already taken on one day, without names (what the booking form needs to grey them out).
+export const fetchSlots = (date) => request('GET', `/api/slots?date=${encodeURIComponent(date)}`)

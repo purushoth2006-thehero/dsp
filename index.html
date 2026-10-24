@@ -5,11 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sridhar Driving School</title>
     <meta name="description" content="Book driving lessons, track your progress and manage attendance at Sridhar Driving School." />
+    <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#14304a" />
     <meta property="og:title" content="Sridhar Driving School" />
     <meta property="og:description" content="Book driving lessons, track your progress and manage attendance." />
     <meta property="og:type" content="website" />
-    <link rel="icon" type="image/svg+xml" href="/logo.png" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <script>
+      // Set the theme before the page paints, so there is no flash of the wrong colours.
+      (function () {
+        var theme = null
+        try { theme = localStorage.getItem('dsp-theme') } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        }
+        document.documentElement.setAttribute('data-theme', theme)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

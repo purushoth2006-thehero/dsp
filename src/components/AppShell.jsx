@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { useApp } from '../state/appContext.js'
+import ThemeToggle from '../ui/ThemeToggle.jsx'
 import { BRAND, ROLES } from '../rules.js'
 
 // Top bar shared by every signed-in page.
@@ -15,6 +16,7 @@ export default function AppShell() {
         <h1><span aria-hidden="true">🚗</span> {BRAND}</h1>
         <div className="topbar-right">
           <span className="who">{name}</span>
+          <ThemeToggle />
           <button type="button" className="ghost light" onClick={logout}>Sign out</button>
         </div>
       </header>

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import {
-  ATTENDANCE, PLACES, TIME_SLOTS, byDateTime, getSlotConflict, isPast,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, PLACES, TIME_SLOTS, TOTAL_LESSONS, byDateTime, getSlotConflict, isPast,
   normalizeEmail, normalizePhone, nowInZone, validateCustomer,
 } from '../src/rules.js'
 import { DUMMY_HASH, hashPassword, verifyPassword } from './security.js'
@@ -36,9 +36,14 @@ function cleanCustomerForm(form) {
   return { name: str(f.name), email: str(f.email), phone: str(f.phone), password: str(f.password) }
 }
 
+function parseDate(date) {
+  if (typeof date !== 'string' || !DATE_RE.test(date) || !isRealDate(date)) throw new HttpError(400, 'Please choose a valid date.')
+  return date
+}
+
 function parseSlot(input) {
   const { date, time, place } = input && typeof input === 'object' ? input : {}
-  if (typeof date !== 'string' || !DATE_RE.test(date) || !isRealDate(date)) throw new HttpError(400, 'Please choose a valid date.')
+  parseDate(date)
   if (!TIME_SLOTS.includes(time)) throw new HttpError(400, 'Please choose a valid time slot.')
   if (!PLACES.includes(place)) throw new HttpError(400, 'Please choose a valid place.')
   return { date, time, place }
@@ -69,6 +74,22 @@ export function createService(store, { now = () => nowInZone() } = {}) {
   }
 
   const releaseLocks = (appt) => Promise.all([release(slotKey(appt), appt.id), release(custKey(appt), appt.id)])
+
+  // Deletes a customer and every lesson they have, which frees those slots for others.
+  async function deleteCustomerAndLessons(id) {
+    const theirs = (await appointments()).filter((a) => a.customerId === id)
+    for (const appt of theirs) {
+      await store.hdel(APPOINTMENTS, appt.id)
+      await releaseLocks(appt)
+    }
+    await store.hdel(CUSTOMERS, id)
+  }
+
+  // A customer may only touch their own lessons. Someone else's lesson looks like it doesn't exist.
+  const NOT_FOUND = 'That lesson no longer exists.'
+  function assertCanChange(appt, actor) {
+    if (actor.role === 'customer' && appt.customerId !== actor.id) throw new HttpError(404, NOT_FOUND)
+  }
 
   return {
     getCustomer: (id) => store.hget(CUSTOMERS, id),
@@ -134,22 +155,45 @@ export function createService(store, { now = () => nowInZone() } = {}) {
 
     async removeCustomer(id) {
       if (!(await store.hget(CUSTOMERS, id))) throw new HttpError(404, 'Customer not found.')
-      const theirs = (await appointments()).filter((a) => a.customerId === id)
-      for (const appt of theirs) {
-        await store.hdel(APPOINTMENTS, appt.id)
-        await releaseLocks(appt)
-      }
-      await store.hdel(CUSTOMERS, id)
+      await deleteCustomerAndLessons(id)
     },
 
     // ----- lessons -----
 
-    async bookAppointment(input) {
-      const customerId = str(input?.customerId)
+    // The slots already taken on one day, without saying who has them. A customer only learns
+    // which of those are their own; this is what lets the booking form grey out unavailable times.
+    async takenSlots(date, actor) {
+      parseDate(date)
+      return (await appointments())
+        .filter((a) => a.date === date)
+        .sort(byDateTime)
+        .map((a) => (a.customerId === actor.id
+          ? { time: a.time, place: a.place, mine: true, id: a.id }
+          : { time: a.time, place: a.place, mine: false }))
+    },
+
+    // The admin books for any customer; a customer always books for themselves.
+    async bookAppointment(input, actor = { role: 'admin' }) {
+      const customerId = actor.role === 'customer' ? actor.id : str(input?.customerId)
       if (!(await store.hget(CUSTOMERS, customerId))) throw new HttpError(404, 'Customer not found.')
       const slot = parseSlot(input)
 
-      const conflict = getSlotConflict(slot, await appointments(), { customerId, now: now() })
+      const all = await appointments()
+      const theirs = all.filter((a) => a.customerId === customerId)
+
+      // The course is 20 lessons. Missed (absent) lessons don't count, so they can be replaced.
+      if (theirs.filter((a) => a.attendance !== ATTENDANCE.ABSENT).length >= TOTAL_LESSONS) {
+        throw new HttpError(409, `All ${TOTAL_LESSONS} lessons are already booked.`)
+      }
+      // Stops one student from taking up every free slot.
+      if (actor.role === 'customer') {
+        const upcoming = theirs.filter((a) => !a.attendance && !isPast(a.date, a.time, now())).length
+        if (upcoming >= MAX_UPCOMING_PER_CUSTOMER) {
+          throw new HttpError(409, `You can have up to ${MAX_UPCOMING_PER_CUSTOMER} upcoming lessons at a time. Attend or cancel one to book another.`)
+        }
+      }
+
+      const conflict = getSlotConflict(slot, all, { customerId, now: now() })
       if (conflict) throw conflictError(conflict)
 
       const appt = { id: newId('a'), customerId, ...slot, attendance: null }
@@ -170,9 +214,10 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       return appt
     },
 
-    async rescheduleAppointment(id, input) {
+    async rescheduleAppointment(id, input, actor = { role: 'admin' }) {
       const appt = await store.hget(APPOINTMENTS, id)
-      if (!appt) throw new HttpError(404, 'That lesson no longer exists.')
+      if (!appt) throw new HttpError(404, NOT_FOUND)
+      assertCanChange(appt, actor)
       if (appt.attendance || isPast(appt.date, appt.time, now())) throw new HttpError(409, LOCKED_MESSAGE)
 
       const slot = parseSlot(input)
@@ -198,9 +243,10 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       return next
     },
 
-    async cancelAppointment(id) {
+    async cancelAppointment(id, actor = { role: 'admin' }) {
       const appt = await store.hget(APPOINTMENTS, id)
-      if (!appt) throw new HttpError(404, 'That lesson no longer exists.')
+      if (!appt) throw new HttpError(404, NOT_FOUND)
+      assertCanChange(appt, actor)
       if (appt.attendance || isPast(appt.date, appt.time, now())) throw new HttpError(409, LOCKED_MESSAGE)
       await store.hdel(APPOINTMENTS, id)
       await releaseLocks(appt)
@@ -213,7 +259,18 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       if (!appt) throw new HttpError(404, 'That lesson no longer exists.')
       const next = { ...appt, attendance: value }
       await store.hset(APPOINTMENTS, id, next)
-      return next
+
+      // Attending the 20th lesson finishes the course: the profile and its lessons are removed.
+      if (value === ATTENDANCE.PRESENT) {
+        const attended = (await appointments())
+          .filter((a) => a.customerId === next.customerId && a.attendance === ATTENDANCE.PRESENT).length
+        const customer = attended >= TOTAL_LESSONS ? await store.hget(CUSTOMERS, next.customerId) : null
+        if (customer) {
+          await deleteCustomerAndLessons(customer.id)
+          return { appointment: next, completed: { name: customer.name } }
+        }
+      }
+      return { appointment: next, completed: null }
     },
   }
 }

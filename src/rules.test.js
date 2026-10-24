@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addDays, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
+  PLACES, addDays, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
   normalizePhone, toCsv, toLocalDate, validateCustomer,
 } from './rules.js'
 
@@ -73,8 +73,8 @@ describe('validateCustomer', () => {
 })
 
 describe('getSlotConflict', () => {
-  const appts = [{ id: 'a1', customerId: 'c1', date: '2026-10-18', time: '10:00', place: 'Downtown Center', attendance: null }]
-  const slot = { date: '2026-10-18', time: '10:00', place: 'North Branch' }
+  const appts = [{ id: 'a1', customerId: 'c1', date: '2026-10-18', time: '10:00', place: PLACES[0], attendance: null }]
+  const slot = { date: '2026-10-18', time: '10:00', place: PLACES[1] }
 
   it('is null for a free future slot', () => {
     expect(getSlotConflict({ ...slot, time: '11:00' }, appts, { customerId: 'c2', now: NOW })).toBeNull()
@@ -85,7 +85,7 @@ describe('getSlotConflict', () => {
   })
 
   it('blocks the same place and time for another customer', () => {
-    const c = getSlotConflict({ ...slot, place: 'Downtown Center' }, appts, { customerId: 'c2', now: NOW })
+    const c = getSlotConflict({ ...slot, place: PLACES[0] }, appts, { customerId: 'c2', now: NOW })
     expect(c.code).toBe('booked')
   })
 
@@ -94,7 +94,7 @@ describe('getSlotConflict', () => {
   })
 
   it('ignores the appointment being rescheduled', () => {
-    const same = { ...slot, place: 'Downtown Center' }
+    const same = { ...slot, place: PLACES[0] }
     expect(getSlotConflict(same, appts, { customerId: 'c1', ignoreId: 'a1', now: NOW })).toBeNull()
   })
 })
@@ -103,16 +103,16 @@ describe('computeStats', () => {
   const data = {
     customers: [{ id: 'c1' }, { id: 'c2' }],
     appointments: [
-      { id: 'a1', customerId: 'c1', date: '2026-10-17', time: '09:00', place: 'Downtown Center', attendance: 'present' },
-      { id: 'a2', customerId: 'c1', date: '2026-10-17', time: '11:00', place: 'Downtown Center', attendance: null },
-      { id: 'a3', customerId: 'c2', date: '2026-10-16', time: '10:00', place: 'North Branch', attendance: null },
-      { id: 'a4', customerId: 'c2', date: '2026-10-18', time: '10:00', place: 'North Branch', attendance: null },
-      { id: 'a5', customerId: 'c2', date: '2026-10-15', time: '10:00', place: 'North Branch', attendance: 'absent' },
+      { id: 'a1', customerId: 'c1', date: '2026-10-17', time: '09:00', place: PLACES[0], attendance: 'present' },
+      { id: 'a2', customerId: 'c1', date: '2026-10-17', time: '11:00', place: PLACES[0], attendance: null },
+      { id: 'a3', customerId: 'c2', date: '2026-10-16', time: '10:00', place: PLACES[1], attendance: null },
+      { id: 'a4', customerId: 'c2', date: '2026-10-18', time: '10:00', place: PLACES[1], attendance: null },
+      { id: 'a5', customerId: 'c2', date: '2026-10-15', time: '10:00', place: PLACES[1], attendance: 'absent' },
     ],
   }
 
   it('summarises the day', () => {
-    const s = computeStats(data, NOW, ['Downtown Center', 'North Branch'])
+    const s = computeStats(data, NOW, [PLACES[0], PLACES[1]])
     expect(s.customers).toBe(2)
     expect(s.today).toBe(2)
     expect(s.upcoming).toBe(2)
@@ -121,8 +121,8 @@ describe('computeStats', () => {
     expect(s.rate).toBe(50)
     expect(s.unmarked).toBe(1)
     expect(s.byPlace).toEqual([
-      { place: 'Downtown Center', count: 1 },
-      { place: 'North Branch', count: 1 },
+      { place: PLACES[0], count: 1 },
+      { place: PLACES[1], count: 1 },
     ])
   })
 

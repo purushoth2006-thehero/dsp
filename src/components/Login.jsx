@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../state/appContext.js'
 import { Field, PasswordInput } from '../ui/Field.jsx'
+import ThemeToggle from '../ui/ThemeToggle.jsx'
 import { BRAND, ROLES } from '../rules.js'
 
 export default function Login() {
@@ -32,6 +33,7 @@ export default function Login() {
 
   return (
     <main className="login-wrap">
+      <ThemeToggle className="ghost" />
       <div className="login-card">
         <h1><span aria-hidden="true">🚗</span> {BRAND}</h1>
 
