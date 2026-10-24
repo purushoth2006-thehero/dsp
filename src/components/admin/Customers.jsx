@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../../state/appContext.js'
 import { useToast } from '../../ui/toastContext.js'
@@ -6,6 +6,7 @@ import useConfirm from '../../ui/useConfirm.jsx'
 import Modal from '../../ui/Modal.jsx'
 import { Field } from '../../ui/Field.jsx'
 import CustomerForm from '../CustomerForm.jsx'
+import ScheduleSheet from '../ScheduleSheet.jsx'
 import { ATTENDANCE, normalizePhone } from '../../rules.js'
 
 export default function Customers() {
@@ -14,6 +15,16 @@ export default function Customers() {
   const [ask, dialog] = useConfirm()
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // the customer being edited
+  const [printing, setPrinting] = useState(null) // the customer whose schedule is being printed
+
+  // Open the print dialog for the chosen customer, then go back to the normal page.
+  useEffect(() => {
+    if (!printing) return undefined
+    const done = () => setPrinting(null)
+    window.addEventListener('afterprint', done)
+    window.print()
+    return () => window.removeEventListener('afterprint', done)
+  }, [printing])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -56,7 +67,8 @@ export default function Customers() {
   }
 
   return (
-    <section className="card">
+    <>
+    <section className="card no-print">
       <div className="toolbar">
         <h2>Customers ({rows.length}{query ? ` of ${data.customers.length}` : ''})</h2>
         <Field label="Search">
@@ -85,6 +97,7 @@ export default function Customers() {
                 <td data-label="Present"><span className="badge present">{c.present}</span></td>
                 <td data-label="Absent"><span className="badge absent">{c.absent}</span></td>
                 <td className="row-actions">
+                  <button type="button" className="ghost" onClick={() => setPrinting(c)}>Print schedule</button>
                   <button type="button" className="ghost" onClick={() => setEditing(c)}>Edit</button>
                   <button type="button" className="ghost danger" onClick={() => remove(c)}>Remove</button>
                 </td>
@@ -107,5 +120,7 @@ export default function Customers() {
       )}
       {dialog}
     </section>
+    {printing && <ScheduleSheet customer={printing} appointments={data.appointments} />}
+    </>
   )
 }

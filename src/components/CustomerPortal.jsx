@@ -3,9 +3,10 @@ import { useApp } from '../state/appContext.js'
 import { useToast } from '../ui/toastContext.js'
 import useConfirm from '../ui/useConfirm.jsx'
 import LessonForm from './LessonForm.jsx'
+import ScheduleSheet from './ScheduleSheet.jsx'
 import useNow from '../ui/useNow.js'
 import {
-  ATTENDANCE, BRAND, MAX_UPCOMING_PER_CUSTOMER, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
 } from '../rules.js'
 
 // Customers book, move and cancel their own lessons and follow their progress.
@@ -165,26 +166,7 @@ export default function CustomerPortal() {
             </>
           )}
         </section>
-        <section className="print-only">
-          <h2>{BRAND}: lesson schedule</h2>
-          <p>{customer?.name}{customer?.phone ? `, ${customer.phone}` : ''}</p>
-          <table className="stack">
-            <thead>
-              <tr><th>No.</th><th>Date</th><th>Time</th><th>Place</th><th>Attendance</th></tr>
-            </thead>
-            <tbody>
-              {mine.map((a, i) => (
-                <tr key={a.id}>
-                  <td>{i + 1}</td>
-                  <td>{formatDate(a.date)}</td>
-                  <td>{formatTime(a.time)}</td>
-                  <td>{a.place}</td>
-                  <td>{a.attendance ?? (isPast(a.date, a.time, now) ? 'not marked' : 'upcoming')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        {customer && <ScheduleSheet customer={customer} appointments={mine} />}
       </div>
       {dialog}
     </main>
