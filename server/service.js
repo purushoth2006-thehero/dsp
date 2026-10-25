@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import {
-  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, PACKAGES, trainerName as trainerNameOf, DEFAULT_PACKAGE, PLACES, TIME_SLOTS, TRAINERS, byDateTime, lessonsFor, packageOf, getSlotConflict, isPast,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, PACKAGES, trainerName as trainerNameOf, DEFAULT_PACKAGE, PLACES, TIME_SLOTS, TRAINERS, byDateTime, addDays, lessonsFor, packageOf, toLocalDate, getSlotConflict, isPast,
   normalizeEmail, normalizePhone, nowInZone, validateCustomer,
 } from '../src/rules.js'
 import { DUMMY_HASH, hashPassword, verifyPassword } from './security.js'
@@ -176,6 +176,26 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       await deleteCustomerAndLessons(id)
     },
 
+    // ----- reminders -----
+
+    // Lessons that should get a reminder now: tomorrow's (day-before) or today's still to come (same-day).
+    async dueReminders(kind) {
+      const current = now()
+      const date = kind === 'day-before' ? addDays(1, current) : toLocalDate(current)
+      const [allAppointments, allCustomers] = await Promise.all([appointments(), customers()])
+      return allAppointments
+        .filter((a) => a.date === date && !a.attendance && !a.reminded?.[kind]
+          && (kind === 'day-before' || !isPast(a.date, a.time, current)))
+        .sort(byDateTime)
+        .map((appointment) => ({ appointment, customer: allCustomers.find((c) => c.id === appointment.customerId) }))
+        .filter((r) => r.customer)
+    },
+
+    async markReminded(id, kind) {
+      const appt = await store.hget(APPOINTMENTS, id)
+      if (appt) await store.hset(APPOINTMENTS, id, { ...appt, reminded: { ...appt.reminded, [kind]: true } })
+    },
+
     // ----- lessons -----
 
     // The slots already taken on one day, without saying who has them. A customer only learns
@@ -249,7 +269,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       })
       if (conflict) throw conflictError(conflict)
 
-      const next = { ...appt, ...slot }
+      const next = { ...appt, ...slot, reminded: {} } // a new time needs new reminders
       const oldKeys = keysOf(appt)
       const newKeys = keysOf(next)
       const claimed = []

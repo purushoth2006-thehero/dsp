@@ -29,6 +29,19 @@ A lesson-scheduling and attendance app for a driving school, built with React, V
 
 **Data is shared.** Everything is stored on the server, so every phone and browser sees the same data. Open pages refresh themselves every 30 seconds.
 
+## Lesson reminders (WhatsApp and SMS)
+
+Customers get a message the evening before (about 6 pm India time) and again the morning of the lesson (about 7 am):
+"Hello Asha, reminder from Sridhar Driving School: you have a driving class tomorrow (...) at 9:00 AM at Potheri with Trainer 1."
+
+It uses Twilio and Vercel Cron, and stays off until you set it up:
+
+1. Create a Twilio account and get a WhatsApp sender and/or an SMS number. For WhatsApp, Meta requires an approved message template to message customers first; put its Content SID in `TWILIO_WHATSAPP_CONTENT_SID`. In India, SMS needs DLT registration of the sender and template.
+2. In Vercel add `CRON_SECRET` (any random 16+ characters), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` and/or `TWILIO_SMS_FROM` (see `.env.example`), then redeploy.
+3. The two schedules are in `vercel.json`. Free Vercel plans run each job once a day, within about an hour of the set time.
+
+Each lesson is reminded once per kind; moving a lesson resets its reminders; a message that fails is retried on the next run.
+
 ## Rules enforced by the server
 
 - Times are always India time (Asia/Kolkata), whatever the visitor's device is set to

@@ -1,6 +1,8 @@
 import { getConfig } from './config.js'
 import { createStore } from './store/index.js'
 import { HttpError, createService } from './service.js'
+import { createNotifier } from './notify.js'
+import { REMINDER_KINDS, sendReminders } from './reminders.js'
 import { buildCookie, fingerprint, parseCookies, safeEqual, signToken, verifyToken } from './security.js'
 
 const COOKIE = 'dsp_session'
@@ -50,10 +52,11 @@ const clientIp = (req) =>
   || 'unknown'
 
 // env/store/now can be injected for tests; on Vercel everything comes from environment variables.
-export function createHandler({ env = process.env, store: injectedStore, now } = {}) {
+export function createHandler({ env = process.env, store: injectedStore, now, notifier: injectedNotifier } = {}) {
   const cfg = getConfig(env)
   const store = injectedStore ?? createStore(cfg)
   const service = store ? createService(store, now ? { now } : {}) : null
+  const notifier = injectedNotifier ?? createNotifier(env)
 
   const secureCookie = (req) => cfg.prod || req.headers['x-forwarded-proto'] === 'https'
   const clearCookie = (req) => buildCookie(COOKIE, '', { maxAge: 0, secure: secureCookie(req) })
@@ -141,6 +144,18 @@ export function createHandler({ env = process.env, store: injectedStore, now } =
     if (path === '/api/health') return send(res, 200, { ok: cfg.problems.length === 0 })
     if (cfg.problems.length > 0) {
       return send(res, 503, { error: 'The server is not set up yet.', code: 'not_configured', problems: cfg.problems })
+    }
+
+    // Called on a schedule by Vercel Cron (see vercel.json). Vercel sends `Authorization: Bearer <CRON_SECRET>`.
+    if (path === '/api/cron/reminders') {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed.')
+      const secret = env.CRON_SECRET || ''
+      if (secret.length < 16) throw new HttpError(503, 'Set CRON_SECRET (at least 16 characters) to turn on reminders.')
+      const given = String(req.headers.authorization ?? '').replace(/^Bearer /, '')
+      if (!safeEqual(given, secret)) throw new HttpError(401, 'Unauthorized.')
+      const kind = url.searchParams.get('kind')
+      if (!REMINDER_KINDS.includes(kind)) throw new HttpError(400, 'kind must be day-before or same-day.')
+      return send(res, 200, await sendReminders({ service, notifier, kind }))
     }
 
     // Browsers can't add this header on a cross-site form post, which blocks CSRF.
