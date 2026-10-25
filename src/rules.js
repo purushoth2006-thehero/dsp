@@ -1,7 +1,24 @@
 // Pure business rules: no React and no browser APIs, so everything here is easy to test.
 
 export const BRAND = 'Sridhar Driving School'
-export const TOTAL_LESSONS = 20
+
+// The three trainers. Trainer 3 is the lady trainer. Rename them here (e.g. 'Ravi') and the whole app follows.
+export const TRAINERS = [
+  { id: 't1', name: 'Trainer 1', gender: 'male' },
+  { id: 't2', name: 'Trainer 2', gender: 'male' },
+  { id: 't3', name: 'Trainer 3 (lady)', gender: 'female' },
+]
+// The admin picks a package when creating a customer. It decides how many lessons the course has
+// and which trainers the customer can choose. Reaching the last lesson removes the customer's profile.
+export const PACKAGES = {
+  standard: { id: 'standard', label: 'Standard (20 lessons)', lessons: 20, trainerIds: ['t1', 't2'] },
+  ladies: { id: 'ladies', label: 'Ladies package (10 lessons, lady trainer only)', lessons: 10, trainerIds: ['t3'] },
+}
+export const DEFAULT_PACKAGE = 'standard'
+export const packageOf = (customer) => PACKAGES[customer?.package] ?? PACKAGES[DEFAULT_PACKAGE]
+export const lessonsFor = (customer) => packageOf(customer).lessons
+export const trainersFor = (customer) => TRAINERS.filter((t) => packageOf(customer).trainerIds.includes(t.id))
+export const trainerName = (id) => TRAINERS.find((t) => t.id === id)?.name ?? 'Not set'
 // A customer booking for themselves may hold at most this many upcoming lessons at once.
 export const MAX_UPCOMING_PER_CUSTOMER = 5
 export const TIME_SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
@@ -82,6 +99,7 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
   if (String(form.name ?? '').trim().length < 2) return 'Please enter the full name.'
   if (!isValidEmail(form.email)) return 'Please enter a valid email address.'
   if (!isValidPhone(form.phone)) return 'Enter a valid 10-digit mobile number, e.g. 9876543210.'
+  if (form.package !== undefined && !PACKAGES[form.package]) return 'Please choose a package.'
 
   const password = form.password ?? ''
   if ((requirePassword || password) && password.length < MIN_PASSWORD) {
@@ -112,7 +130,7 @@ export function closedDayName(date) {
 
 // Returns null when the slot is free, otherwise { code, message }.
 export function getSlotConflict(slot, appointments, { customerId, ignoreId = null, now = new Date() } = {}) {
-  const { date, time, place } = slot
+  const { date, time, place, trainerId } = slot
   if (!date || !time || !place) return { code: 'incomplete', message: 'Please choose a date, time and place.' }
   const closed = closedDayName(date)
   if (closed) return { code: 'closed', message: `The school is closed on ${closed}s. Please choose another day.` }
@@ -126,6 +144,9 @@ export function getSlotConflict(slot, appointments, { customerId, ignoreId = nul
   }
   if (sameSlot.some((a) => a.place === place)) {
     return { code: 'booked', message: `${place} is already booked at ${formatTime(time)} on ${formatDate(date)}. Pick another slot.` }
+  }
+  if (trainerId && sameSlot.some((a) => a.trainerId === trainerId)) {
+    return { code: 'trainer', message: `${trainerName(trainerId)} already has a lesson at ${formatTime(time)} on ${formatDate(date)}. Pick another trainer or time.` }
   }
   return null
 }

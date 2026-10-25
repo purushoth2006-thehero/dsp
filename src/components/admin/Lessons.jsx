@@ -6,7 +6,7 @@ import useConfirm from '../../ui/useConfirm.jsx'
 import useNow from '../../ui/useNow.js'
 import { Field } from '../../ui/Field.jsx'
 import LessonForm from '../LessonForm.jsx'
-import { BRAND, byDateTime, formatDate, formatTime, isPast } from '../../rules.js'
+import { BRAND, byDateTime, trainerName, formatDate, formatTime, isPast } from '../../rules.js'
 
 // The admin schedules, moves and cancels every lesson.
 export default function Lessons() {
@@ -72,7 +72,7 @@ export default function Lessons() {
         {upcoming.length > 0 && (
           <table className="stack">
             <thead>
-              <tr><th className="print-only">No.</th><th>Customer</th><th className="print-only">Mobile</th><th>Date</th><th>Time</th><th>Place</th><th className="no-print"><span className="visually-hidden">Actions</span></th></tr>
+              <tr><th className="print-only">No.</th><th>Customer</th><th className="print-only">Mobile</th><th>Date</th><th>Time</th><th>Place</th><th>Trainer</th><th className="no-print"><span className="visually-hidden">Actions</span></th></tr>
             </thead>
             <tbody>
               {upcoming.map((a, i) => (
@@ -83,6 +83,7 @@ export default function Lessons() {
                   <td data-label="Date">{formatDate(a.date)}</td>
                   <td data-label="Time">{formatTime(a.time)}</td>
                   <td data-label="Place">{a.place}</td>
+                  <td data-label="Trainer">{trainerName(a.trainerId)}</td>
                   <td className="row-actions no-print">
                     <button type="button" className="ghost" onClick={() => setEditing(a)}>Reschedule</button>
                     <button type="button" className="ghost danger" onClick={() => cancel(a)}>Cancel</button>

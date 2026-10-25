@@ -5,13 +5,14 @@ import { Field } from '../../ui/Field.jsx'
 import useConfirm from '../../ui/useConfirm.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, BRAND, PLACES, TOTAL_LESSONS, byDateTime, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
+  ATTENDANCE, BRAND, PLACES, byDateTime, lessonsFor, trainerName, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
 
 const COLUMNS = [
   { label: 'Date', value: (r) => formatDate(r.date), text: true },
   { label: 'Time', value: (r) => formatTime(r.time), text: true },
   { label: 'Place', value: (r) => r.place },
+  { label: 'Trainer', value: (r) => trainerName(r.trainerId) },
   { label: 'Customer', value: (r) => r.customer?.name ?? 'removed' },
   { label: 'Mobile', value: (r) => r.customer?.phone ?? '', text: true },
   { label: 'Attendance', value: (r) => r.attendance ?? 'not marked' },
@@ -52,10 +53,11 @@ export default function Attendance() {
     if (value === ATTENDANCE.PRESENT && appt.attendance !== value && appt.customer) {
       const attended = data.appointments
         .filter((a) => a.customerId === appt.customerId && a.attendance === ATTENDANCE.PRESENT).length
-      if (attended + 1 >= TOTAL_LESSONS) {
+      const total = lessonsFor(appt.customer)
+      if (attended + 1 >= total) {
         const confirmed = await ask({
           title: `Finish ${appt.customer.name}'s course?`,
-          message: `This is lesson ${TOTAL_LESSONS} of ${TOTAL_LESSONS}. Marking it present removes ${appt.customer.name}'s profile and all their lessons. This cannot be undone.`,
+          message: `This is lesson ${total} of ${total}. Marking it present removes ${appt.customer.name}'s profile and all their lessons. This cannot be undone.`,
           confirmLabel: 'Mark present and remove',
           cancelLabel: 'Not yet',
           danger: true,
@@ -65,7 +67,7 @@ export default function Attendance() {
     }
     const result = await setAttendance(appt.id, appt.attendance === value ? null : value)
     if (!result.ok) toast(result.error, 'error')
-    else if (result.completed) toast(`${result.completed.name} finished all ${TOTAL_LESSONS} lessons. Their profile has been removed.`)
+    else if (result.completed) toast(`${result.completed.name} finished all ${result.completed.lessons} lessons. Their profile has been removed.`)
   }
 
   const exportCsv = () => {
@@ -109,7 +111,7 @@ export default function Attendance() {
       {rows.length > 0 && (
         <table className={`stack ${filterPlace ? '' : 'no-print'}`}>
           <thead>
-            <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
+            <tr><th>Date</th><th>Time</th><th>Place</th><th>Trainer</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
           </thead>
           <tbody>
             {rows.map((a) => (
@@ -117,6 +119,7 @@ export default function Attendance() {
                 <td data-label="Date">{formatDate(a.date)}</td>
                 <td data-label="Time">{formatTime(a.time)}</td>
                 <td data-label="Place">{a.place}</td>
+                <td data-label="Trainer">{trainerName(a.trainerId)}</td>
                 <td data-label="Customer">{a.customer ? a.customer.name : <i>removed</i>}</td>
                 <td className="print-only">{a.customer?.phone ?? ''}</td>
                 <td className="print-only">{a.attendance ?? 'not marked'}</td>
@@ -149,13 +152,14 @@ export default function Attendance() {
                 {list.length === 0 ? <p>No lessons.</p> : (
                   <table className="stack">
                     <thead>
-                      <tr><th>Date</th><th>Time</th><th>Customer</th><th>Mobile</th><th>Attendance</th></tr>
+                      <tr><th>Date</th><th>Time</th><th>Trainer</th><th>Customer</th><th>Mobile</th><th>Attendance</th></tr>
                     </thead>
                     <tbody>
                       {list.map((a) => (
                         <tr key={a.id}>
                           <td>{formatDate(a.date)}</td>
                           <td>{formatTime(a.time)}</td>
+                          <td>{trainerName(a.trainerId)}</td>
                           <td>{a.customer ? a.customer.name : 'removed'}</td>
                           <td>{a.customer?.phone ?? ''}</td>
                           <td>{a.attendance ?? 'not marked'}</td>
@@ -169,7 +173,7 @@ export default function Attendance() {
           })}
         </div>
       )}
-      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their {TOTAL_LESSONS}th lesson is marked present.</p>
+      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their last lesson (20 for Standard, 10 for Ladies) is marked present.</p>
       {dialog}
     </section>
   )

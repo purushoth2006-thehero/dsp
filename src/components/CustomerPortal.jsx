@@ -6,7 +6,7 @@ import LessonForm from './LessonForm.jsx'
 import ScheduleSheet from './ScheduleSheet.jsx'
 import useNow from '../ui/useNow.js'
 import {
-  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, TOTAL_LESSONS, byDateTime, formatDate, formatTime, isPast,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, byDateTime, formatDate, formatTime, isPast, lessonsFor, packageOf, trainerName,
 } from '../rules.js'
 
 // Customers book, move and cancel their own lessons and follow their progress.
@@ -19,6 +19,8 @@ export default function CustomerPortal() {
   const [view, setView] = useState('upcoming')
 
   const customer = data.customers.find((c) => c.id === session.id)
+
+  const TOTAL_LESSONS = lessonsFor(customer)
 
   const mine = useMemo(
     () => data.appointments.filter((a) => a.customerId === session.id).sort(byDateTime),
@@ -59,7 +61,7 @@ export default function CustomerPortal() {
         <section className="card no-print">
           <h2>Hello, {customer?.name}</h2>
           <p className="muted">
-            Book your lessons below. Your course is {TOTAL_LESSONS} lessons, and your profile is removed
+            Book your lessons below. Your package is {packageOf(customer).label}; your course is {TOTAL_LESSONS} lessons, and your profile is removed
             automatically once you have attended all {TOTAL_LESSONS}.
           </p>
         </section>
@@ -115,7 +117,7 @@ export default function CustomerPortal() {
               {upcoming.length > 0 && (
                 <table className="stack">
                   <thead>
-                    <tr><th>Date</th><th>Time</th><th>Place</th><th><span className="visually-hidden">Actions</span></th></tr>
+                    <tr><th>Date</th><th>Time</th><th>Place</th><th>Trainer</th><th><span className="visually-hidden">Actions</span></th></tr>
                   </thead>
                   <tbody>
                     {upcoming.map((a) => (
@@ -123,6 +125,7 @@ export default function CustomerPortal() {
                         <td data-label="Date">{formatDate(a.date)}</td>
                         <td data-label="Time">{formatTime(a.time)}</td>
                         <td data-label="Place">{a.place}</td>
+                        <td data-label="Trainer">{trainerName(a.trainerId)}</td>
                         <td className="row-actions">
                           {a.attendance ? (
                             <span className={`badge ${a.attendance}`}>{a.attendance}</span>
@@ -145,7 +148,7 @@ export default function CustomerPortal() {
               {past.length > 0 && (
                 <table className="stack">
                   <thead>
-                    <tr><th>Date</th><th>Time</th><th>Place</th><th>Attendance</th></tr>
+                    <tr><th>Date</th><th>Time</th><th>Place</th><th>Trainer</th><th>Attendance</th></tr>
                   </thead>
                   <tbody>
                     {past.map((a) => (
@@ -153,6 +156,7 @@ export default function CustomerPortal() {
                         <td data-label="Date">{formatDate(a.date)}</td>
                         <td data-label="Time">{formatTime(a.time)}</td>
                         <td data-label="Place">{a.place}</td>
+                        <td data-label="Trainer">{trainerName(a.trainerId)}</td>
                         <td data-label="Attendance">
                           {a.attendance
                             ? <span className={`badge ${a.attendance}`}>{a.attendance}</span>

@@ -7,7 +7,7 @@ import Modal from '../../ui/Modal.jsx'
 import { Field } from '../../ui/Field.jsx'
 import CustomerForm from '../CustomerForm.jsx'
 import ScheduleSheet from '../ScheduleSheet.jsx'
-import { ATTENDANCE, normalizePhone } from '../../rules.js'
+import { ATTENDANCE, normalizePhone, packageOf } from '../../rules.js'
 
 export default function Customers() {
   const { data, updateCustomer, removeCustomer } = useApp()
@@ -85,7 +85,7 @@ export default function Customers() {
       {rows.length > 0 && (
         <table className="stack">
           <thead>
-            <tr><th>Name</th><th>Email</th><th>Mobile</th><th>Lessons</th><th>Present</th><th>Absent</th><th><span className="visually-hidden">Actions</span></th></tr>
+            <tr><th>Name</th><th>Email</th><th>Mobile</th><th>Package</th><th>Lessons</th><th>Present</th><th>Absent</th><th><span className="visually-hidden">Actions</span></th></tr>
           </thead>
           <tbody>
             {rows.map((c) => (
@@ -93,7 +93,8 @@ export default function Customers() {
                 <td data-label="Name">{c.name}</td>
                 <td data-label="Email">{c.email}</td>
                 <td data-label="Mobile">{c.phone}</td>
-                <td data-label="Lessons">{c.total}</td>
+                <td data-label="Package">{packageOf(c).label.split(' (')[0]}</td>
+                <td data-label="Lessons">{c.total}/{packageOf(c).lessons}</td>
                 <td data-label="Present"><span className="badge present">{c.present}</span></td>
                 <td data-label="Absent"><span className="badge absent">{c.absent}</span></td>
                 <td className="row-actions">
@@ -110,7 +111,8 @@ export default function Customers() {
       {editing && (
         <Modal title={`Edit ${editing.name}`} onClose={() => setEditing(null)}>
           <CustomerForm
-            initial={{ name: editing.name, email: editing.email, phone: editing.phone }}
+            initial={{ name: editing.name, email: editing.email, phone: editing.phone, package: editing.package }}
+            packageLocked={data.appointments.some((a) => a.customerId === editing.id)}
             requirePassword={false}
             submitLabel="Save changes"
             onSubmit={saveEdit}

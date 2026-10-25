@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import {
-  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, PLACES, TIME_SLOTS, TOTAL_LESSONS, byDateTime, getSlotConflict, isPast,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, PACKAGES, trainerName as trainerNameOf, DEFAULT_PACKAGE, PLACES, TIME_SLOTS, TRAINERS, byDateTime, lessonsFor, packageOf, getSlotConflict, isPast,
   normalizeEmail, normalizePhone, nowInZone, validateCustomer,
 } from '../src/rules.js'
 import { DUMMY_HASH, hashPassword, verifyPassword } from './security.js'
@@ -18,12 +18,15 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const str = (v) => (typeof v === 'string' ? v : '')
 const newId = (prefix) => prefix + randomUUID().replace(/-/g, '').slice(0, 12)
-const publicCustomer = ({ id, name, email, phone }) => ({ id, name, email, phone })
+const publicCustomer = ({ id, name, email, phone, package: pkg }) => ({ id, name, email, phone, package: PACKAGES[pkg] ? pkg : DEFAULT_PACKAGE })
 const byName = (a, b) => a.name.localeCompare(b.name)
 
 // Locks make double-booking impossible even when two requests arrive at the same moment.
 const slotKey = (a) => `lock:slot:${a.date}|${a.time}|${a.place}`
 const custKey = (a) => `lock:cust:${a.customerId}|${a.date}|${a.time}`
+const trainerKey = (a) => `lock:trainer:${a.trainerId}|${a.date}|${a.time}`
+// Lessons from before trainers existed have no trainerId and so no trainer lock.
+const keysOf = (a) => [slotKey(a), custKey(a), ...(a.trainerId ? [trainerKey(a)] : [])]
 
 function isRealDate(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -33,7 +36,7 @@ function isRealDate(iso) {
 
 function cleanCustomerForm(form) {
   const f = form && typeof form === 'object' ? form : {}
-  return { name: str(f.name), email: str(f.email), phone: str(f.phone), password: str(f.password) }
+  return { name: str(f.name), email: str(f.email), phone: str(f.phone), password: str(f.password), package: str(f.package) || DEFAULT_PACKAGE }
 }
 
 function parseDate(date) {
@@ -73,7 +76,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
     if ((await store.get(key)) === apptId) await store.del(key)
   }
 
-  const releaseLocks = (appt) => Promise.all([release(slotKey(appt), appt.id), release(custKey(appt), appt.id)])
+  const releaseLocks = (appt) => Promise.all(keysOf(appt).map((k) => release(k, appt.id)))
 
   // Deletes a customer and every lesson they have, which frees those slots for others.
   async function deleteCustomerAndLessons(id) {
@@ -83,6 +86,15 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       await releaseLocks(appt)
     }
     await store.hdel(CUSTOMERS, id)
+  }
+
+  // The trainer must exist and be one this customer's package allows.
+  function parseTrainer(trainerId, customer) {
+    if (!TRAINERS.some((t) => t.id === trainerId)) throw new HttpError(400, 'Please choose a trainer.')
+    if (!packageOf(customer).trainerIds.includes(trainerId)) {
+      throw new HttpError(400, 'That trainer is not available for this customer\'s package.')
+    }
+    return trainerId
   }
 
   // A customer may only touch their own lessons. Someone else's lesson looks like it doesn't exist.
@@ -129,6 +141,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         name: f.name.trim(),
         email: normalizeEmail(f.email),
         phone: normalizePhone(f.phone),
+        package: f.package,
         passwordHash: await hashPassword(f.password),
         createdAt: new Date().toISOString(),
       }
@@ -142,8 +155,13 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       const f = cleanCustomerForm(form)
       const error = validateCustomer(f, await customers(), { ignoreId: id, requirePassword: false })
       if (error) throw new HttpError(400, error)
+      const packageChanged = f.package !== (existing.package ?? DEFAULT_PACKAGE)
+      if (packageChanged && (await appointments()).some((a) => a.customerId === id)) {
+        throw new HttpError(409, 'The package can only be changed while the customer has no lessons booked.')
+      }
       const next = {
         ...existing,
+        package: f.package,
         name: f.name.trim(),
         email: normalizeEmail(f.email),
         phone: normalizePhone(f.phone),
@@ -168,22 +186,24 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         .filter((a) => a.date === date)
         .sort(byDateTime)
         .map((a) => (a.customerId === actor.id
-          ? { time: a.time, place: a.place, mine: true, id: a.id }
-          : { time: a.time, place: a.place, mine: false }))
+          ? { time: a.time, place: a.place, trainerId: a.trainerId ?? null, mine: true, id: a.id }
+          : { time: a.time, place: a.place, trainerId: a.trainerId ?? null, mine: false }))
     },
 
     // The admin books for any customer; a customer always books for themselves.
     async bookAppointment(input, actor = { role: 'admin' }) {
       const customerId = actor.role === 'customer' ? actor.id : str(input?.customerId)
-      if (!(await store.hget(CUSTOMERS, customerId))) throw new HttpError(404, 'Customer not found.')
-      const slot = parseSlot(input)
+      const customer = await store.hget(CUSTOMERS, customerId)
+      if (!customer) throw new HttpError(404, 'Customer not found.')
+      const slot = { ...parseSlot(input), trainerId: parseTrainer(input?.trainerId, customer) }
 
       const all = await appointments()
       const theirs = all.filter((a) => a.customerId === customerId)
 
-      // The course is 20 lessons. Missed (absent) lessons don't count, so they can be replaced.
-      if (theirs.filter((a) => a.attendance !== ATTENDANCE.ABSENT).length >= TOTAL_LESSONS) {
-        throw new HttpError(409, `All ${TOTAL_LESSONS} lessons are already booked.`)
+      // The course length depends on the package. Missed (absent) lessons don't count, so they can be replaced.
+      const courseLessons = lessonsFor(customer)
+      if (theirs.filter((a) => a.attendance !== ATTENDANCE.ABSENT).length >= courseLessons) {
+        throw new HttpError(409, `All ${courseLessons} lessons are already booked.`)
       }
       // Stops one student from taking up every free slot.
       if (actor.role === 'customer') {
@@ -201,13 +221,15 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       await store.hset(APPOINTMENTS, appt.id, appt)
 
       const claimed = []
-      for (const key of [slotKey(appt), custKey(appt)]) {
+      for (const key of keysOf(appt)) {
         if (!(await claim(key, appt.id))) {
           await Promise.all(claimed.map((k) => release(k, appt.id)))
           await store.hdel(APPOINTMENTS, appt.id)
           throw new HttpError(409, key.startsWith('lock:slot')
             ? `${appt.place} was just booked at that time. Please pick another slot.`
-            : 'This customer already has a lesson at that time.')
+            : key.startsWith('lock:trainer')
+              ? `${trainerNameOf(appt.trainerId)} was just booked at that time. Please pick another time or trainer.`
+              : 'This customer already has a lesson at that time.')
         }
         claimed.push(key)
       }
@@ -220,18 +242,18 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       assertCanChange(appt, actor)
       if (appt.attendance || isPast(appt.date, appt.time, now())) throw new HttpError(409, LOCKED_MESSAGE)
 
-      const slot = parseSlot(input)
+      const owner = await store.hget(CUSTOMERS, appt.customerId)
+      const slot = { ...parseSlot(input), trainerId: parseTrainer(input?.trainerId ?? appt.trainerId, owner) }
       const conflict = getSlotConflict(slot, await appointments(), {
         customerId: appt.customerId, ignoreId: id, now: now(),
       })
       if (conflict) throw conflictError(conflict)
 
       const next = { ...appt, ...slot }
-      const oldKeys = [slotKey(appt), custKey(appt)]
-      const newKeys = [slotKey(next), custKey(next)]
+      const oldKeys = keysOf(appt)
+      const newKeys = keysOf(next)
       const claimed = []
-      for (const [i, key] of newKeys.entries()) {
-        if (key === oldKeys[i]) continue
+      for (const key of newKeys.filter((k) => !oldKeys.includes(k))) {
         if (!(await claim(key, id))) {
           await Promise.all(claimed.map((k) => release(k, id)))
           throw new HttpError(409, 'That slot was just taken. Please pick another one.')
@@ -239,7 +261,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         claimed.push(key)
       }
       await store.hset(APPOINTMENTS, id, next)
-      await Promise.all(oldKeys.filter((k, i) => k !== newKeys[i]).map((k) => release(k, id)))
+      await Promise.all(oldKeys.filter((k) => !newKeys.includes(k)).map((k) => release(k, id)))
       return next
     },
 
@@ -264,10 +286,11 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       if (value === ATTENDANCE.PRESENT) {
         const attended = (await appointments())
           .filter((a) => a.customerId === next.customerId && a.attendance === ATTENDANCE.PRESENT).length
-        const customer = attended >= TOTAL_LESSONS ? await store.hget(CUSTOMERS, next.customerId) : null
+        const owner = await store.hget(CUSTOMERS, next.customerId)
+        const customer = owner && attended >= lessonsFor(owner) ? owner : null
         if (customer) {
           await deleteCustomerAndLessons(customer.id)
-          return { appointment: next, completed: { name: customer.name } }
+          return { appointment: next, completed: { name: customer.name, lessons: lessonsFor(customer) } }
         }
       }
       return { appointment: next, completed: null }

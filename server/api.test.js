@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createHandler } from './handler.js'
 import { MemoryStore } from './store/memory.js'
 import { UpstashStore } from './store/upstash.js'
-import { MAX_UPCOMING_PER_CUSTOMER, PLACES, TIME_SLOTS, TOTAL_LESSONS } from '../src/rules.js'
+import { MAX_UPCOMING_PER_CUSTOMER, PACKAGES, PLACES, TIME_SLOTS } from '../src/rules.js'
+
+const TOTAL_LESSONS = PACKAGES.standard.lessons
 
 // Saturday 17 Oct 2026, 10:00 at the school
 const NOW = new Date(2026, 9, 17, 10, 0)
@@ -150,7 +152,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
   }
 
   const book = (admin, customerId, over = {}) =>
-    admin.call('POST', '/api/appointments', { customerId, date: FUTURE, time: '10:00', place: PLACES[0], ...over })
+    admin.call('POST', '/api/appointments', { customerId, date: FUTURE, time: '10:00', place: PLACES[0], trainerId: 't1', ...over })
 
   // A browser signed in as this customer.
   async function customerBrowser(c, password = 'secret123') {
@@ -354,8 +356,8 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const res = await customerA.call('GET', `/api/slots?date=${FUTURE}`)
     expect(res.status).toBe(200)
     expect(res.body.slots).toEqual([
-      { time: '10:00', place: PLACES[0], mine: false },
-      { time: '11:00', place: PLACES[0], mine: true, id: mine.id },
+      { time: '10:00', place: PLACES[0], trainerId: 't1', mine: false },
+      { time: '11:00', place: PLACES[0], trainerId: 't1', mine: true, id: mine.id },
     ])
     expect(JSON.stringify(res.body)).not.toContain(b.id)
 
@@ -423,7 +425,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
 
     const last = await mark(ids[TOTAL_LESSONS - 1], 'present')
     expect(last.status).toBe(200)
-    expect(last.body.completed).toEqual({ name: c.name })
+    expect(last.body.completed).toEqual({ name: c.name, lessons: TOTAL_LESSONS })
 
     const after = (await admin.call('GET', '/api/session')).body
     expect(after.customers.map((x) => x.id)).toEqual([other.id])
@@ -471,7 +473,8 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
 
     expect((await book(admin, b.id)).status).toBe(409) // same place and time
     expect((await book(admin, a.id, { place: PLACES[1] })).status).toBe(409) // same customer, same time
-    expect((await book(admin, b.id, { place: PLACES[1] })).status).toBe(201) // different place is fine
+    expect((await book(admin, b.id, { place: PLACES[1] })).status).toBe(409) // same trainer at the same time
+    expect((await book(admin, b.id, { place: PLACES[1], trainerId: 't2' })).status).toBe(201) // different place and trainer is fine
 
     expect((await book(admin, b.id, { date: '2026-10-17', time: '09:00' })).status).toBe(400) // already passed today
     expect((await book(admin, b.id, { date: '2026-10-16' })).status).toBe(400)
@@ -480,6 +483,81 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await book(admin, b.id, { time: '12:00' })).status).toBe(400)
     expect((await book(admin, b.id, { date: '2026-02-31' })).status).toBe(400)
     expect((await book(admin, 'does-not-exist')).status).toBe(404)
+  })
+
+  it('gives every customer a package and only the trainers that package allows', async () => {
+    const admin = await adminBrowser()
+    const std = await addCustomer(admin)
+    const lady = await addCustomer(admin, { package: 'ladies' })
+    expect(std.package).toBe('standard')
+    expect(lady.package).toBe('ladies')
+    expect((await admin.call('POST', '/api/customers', { name: 'Bad Pkg', email: 'bad@example.com', phone: '9000000002', password: 'secret123', package: 'vip' })).status).toBe(400)
+
+    expect((await book(admin, std.id, { trainerId: 't3' })).status).toBe(400) // the lady trainer is for the ladies package
+    expect((await book(admin, lady.id, { trainerId: 't1' })).status).toBe(400)
+    expect((await book(admin, lady.id, { trainerId: 't2' })).status).toBe(400)
+    expect((await book(admin, std.id, { trainerId: undefined })).status).toBe(400) // a trainer must be chosen
+    expect((await book(admin, std.id, { trainerId: 't9' })).status).toBe(400)
+    expect((await book(admin, std.id, { trainerId: 't2' })).status).toBe(201)
+    expect((await book(admin, lady.id, { trainerId: 't3', place: PLACES[1] })).status).toBe(201)
+  })
+
+  it('does not let one trainer teach two lessons at the same time', async () => {
+    const admin = await adminBrowser()
+    const a = await addCustomer(admin)
+    const b = await addCustomer(admin)
+    const first = await book(admin, a.id, { place: PLACES[0], trainerId: 't1' })
+    expect(first.status).toBe(201)
+    const clash = await book(admin, b.id, { place: PLACES[1], trainerId: 't1' })
+    expect(clash.status).toBe(409)
+    expect(clash.body.error).toMatch(/Trainer 1 already has a lesson/)
+    const other = await book(admin, b.id, { place: PLACES[1], trainerId: 't2' })
+    expect(other.status).toBe(201)
+
+    // Moving a lesson onto a busy trainer is refused too, and changing trainer works.
+    const move = await admin.call('PUT', `/api/appointments/${other.body.appointment.id}`, { date: FUTURE, time: '10:00', place: PLACES[1], trainerId: 't1' })
+    expect(move.status).toBe(409)
+    const swap = await admin.call('PUT', `/api/appointments/${first.body.appointment.id}`, { date: FUTURE, time: '10:00', place: PLACES[0], trainerId: 't2' })
+    expect(swap.status).toBe(409) // t2 is busy with b at that time
+    const free = await admin.call('PUT', `/api/appointments/${first.body.appointment.id}`, { date: FUTURE, time: '11:00', place: PLACES[0], trainerId: 't2' })
+    expect(free.status).toBe(200)
+    expect(free.body.appointment.trainerId).toBe('t2')
+    // The old trainer is free again at 10:00.
+    expect((await book(admin, a.id, { place: PLACES[2], trainerId: 't1' })).status).toBe(201)
+  })
+
+  it('runs the ladies package as a 10-lesson course and removes the profile after the 10th', async () => {
+    const admin = await adminBrowser()
+    const lady = await addCustomer(admin, { package: 'ladies' })
+    const lessons = PACKAGES.ladies.lessons
+    expect(lessons).toBe(10)
+    const ids = []
+    for (let i = 0; i < lessons; i += 1) {
+      const res = await book(admin, lady.id, { ...slotNumber(i), trainerId: 't3' })
+      expect(res.status, JSON.stringify(res.body)).toBe(201)
+      ids.push(res.body.appointment.id)
+    }
+    const extra = await book(admin, lady.id, { ...slotNumber(lessons), trainerId: 't3' })
+    expect(extra.status).toBe(409)
+    expect(extra.body.error).toMatch(/All 10 lessons/)
+
+    for (const id of ids.slice(0, -1)) {
+      const res = await admin.call('PUT', `/api/appointments/${id}/attendance`, { attendance: 'present' })
+      expect(res.body.completed).toBeNull()
+    }
+    const last = await admin.call('PUT', `/api/appointments/${ids.at(-1)}/attendance`, { attendance: 'present' })
+    expect(last.body.completed).toEqual({ name: lady.name, lessons: 10 })
+    expect((await admin.call('GET', '/api/session')).body.customers.map((c) => c.id)).not.toContain(lady.id)
+  }, 20000)
+
+  it('only changes a customer\'s package before they have lessons', async () => {
+    const admin = await adminBrowser()
+    const c = await addCustomer(admin)
+    const form = (pkg) => ({ name: c.name, email: c.email, phone: c.phone, package: pkg })
+    expect((await admin.call('PUT', `/api/customers/${c.id}`, form('ladies'))).body.customer.package).toBe('ladies')
+    expect((await book(admin, c.id, { trainerId: 't3' })).status).toBe(201)
+    expect((await admin.call('PUT', `/api/customers/${c.id}`, form('standard'))).status).toBe(409)
+    expect((await admin.call('PUT', `/api/customers/${c.id}`, form('ladies'))).status).toBe(200) // same package is fine
   })
 
   it('lets exactly one of several simultaneous bookings for the same slot win', async () => {

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Field, PasswordInput } from '../ui/Field.jsx'
-import { MIN_PASSWORD } from '../rules.js'
+import { DEFAULT_PACKAGE, MIN_PASSWORD, PACKAGES, TRAINERS } from '../rules.js'
 
-const EMPTY = { name: '', email: '', phone: '', password: '' }
+const EMPTY = { name: '', email: '', phone: '', password: '', package: DEFAULT_PACKAGE }
 
 // Used by the admin to add and edit customers.
 // onSubmit(form) may be async and must resolve to { ok, error }.
 export default function CustomerForm({
-  initial, requirePassword = true, submitLabel, onSubmit, onCancel, resetOnSuccess = false,
+  initial, requirePassword = true, packageLocked = false, submitLabel, onSubmit, onCancel, resetOnSuccess = false,
 }) {
   const [form, setForm] = useState({ ...EMPTY, ...initial })
   const [error, setError] = useState('')
@@ -35,6 +35,16 @@ export default function CustomerForm({
       </Field>
       <Field label="Mobile number" hint="10-digit Indian mobile number">
         <input type="tel" inputMode="numeric" value={form.phone} onChange={set('phone')} autoComplete="off" placeholder="9876543210" required />
+      </Field>
+      <Field
+        label="Package"
+        hint={packageLocked
+          ? 'The package cannot be changed once lessons are booked.'
+          : `Standard: choose from ${TRAINERS.filter((t) => PACKAGES.standard.trainerIds.includes(t.id)).map((t) => t.name).join(' or ')}. Ladies: lady trainer only.`}
+      >
+        <select value={form.package} onChange={set('package')} disabled={packageLocked}>
+          {Object.values(PACKAGES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
       </Field>
       <Field
         label={requirePassword ? 'Password' : 'New password'}
