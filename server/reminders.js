@@ -1,15 +1,15 @@
-import { BRAND, formatDate, formatTime, trainerName } from '../src/rules.js'
+import { BRAND, formatDate, formatTime } from '../src/rules.js'
 
 export const REMINDER_KINDS = ['day-before', 'same-day']
 
 // The text sent to the customer. `variables` are the same values for an approved WhatsApp template:
-// {{1}} name, {{2}} day (today / tomorrow), {{3}} date, {{4}} time, {{5}} place, {{6}} trainer.
+// {{1}} name, {{2}} day (today / tomorrow), {{3}} date, {{4}} time, {{5}} place.
 export function buildReminder(kind, appt, customer) {
   const when = kind === 'day-before' ? 'tomorrow' : 'today'
   const firstName = customer.name.trim().split(/\s+/)[0]
-  const values = [firstName, when, formatDate(appt.date), formatTime(appt.time), appt.place, trainerName(appt.trainerId)]
+  const values = [firstName, when, formatDate(appt.date), formatTime(appt.time), appt.place]
   return {
-    text: `Hello ${firstName}, reminder from ${BRAND}: you have a driving class ${when} (${values[2]}) at ${values[3]} at ${values[4]} with ${values[5]}. Please arrive on time.`,
+    text: `Hello ${firstName}, reminder from ${BRAND}: you have a driving class ${when} (${values[2]}) at ${values[3]} at ${values[4]}. Please arrive on time.`,
     variables: Object.fromEntries(values.map((v, i) => [String(i + 1), v])),
   }
 }

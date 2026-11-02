@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../../state/appContext.js'
 import useNow from '../../ui/useNow.js'
-import { PLACES, computeStats, trainerName, formatDate, formatTime, toLocalDate } from '../../rules.js'
+import { computeStats, formatDate, formatTime, toLocalDate } from '../../rules.js'
 
 function Stat({ label, value, sub, warn }) {
   return (
@@ -38,7 +38,7 @@ export default function Dashboard() {
         {s.byDay.length === 0 ? <p className="empty">No upcoming lessons.</p> : (
           <table className="stack">
             <thead>
-              <tr><th>Date</th><th>Lessons</th>{PLACES.map((p) => <th key={p}>{p}</th>)}</tr>
+              <tr><th>Date</th><th>Lessons</th>{s.byPlace.map((p) => <th key={p.place}>{p.place}</th>)}</tr>
             </thead>
             <tbody>
               {s.byDay.map((d) => (
@@ -63,7 +63,7 @@ export default function Dashboard() {
           {s.todayList.length > 0 && (
             <table className="stack">
               <thead>
-                <tr><th>Time</th><th>Place</th><th>Trainer</th><th>Customer</th><th>Attendance</th></tr>
+                <tr><th>Time</th><th>Place</th><th>Customer</th><th>Attendance</th></tr>
               </thead>
               <tbody>
                 {s.todayList.map((a) => {
@@ -72,7 +72,6 @@ export default function Dashboard() {
                     <tr key={a.id}>
                       <td data-label="Time">{formatTime(a.time)}</td>
                       <td data-label="Place">{a.place}</td>
-                      <td data-label="Trainer">{trainerName(a.trainerId)}</td>
                       <td data-label="Customer">{c ? c.name : <i>removed</i>}</td>
                       <td data-label="Attendance">
                         {a.attendance

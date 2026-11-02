@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PLACES, addDays, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
+  PACKAGES, PLACES, addDays, bookableDates, isBookableByCustomer, isValidPlace, packageOf, placeKey, placeList, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
   normalizePhone, toCsv, toLocalDate, validateCustomer,
 } from './rules.js'
 
@@ -48,20 +48,19 @@ describe('phone numbers', () => {
 })
 
 describe('validateCustomer', () => {
-  const customers = [{ id: 'c1', name: 'Alice', email: 'alice@example.com', phone: '9876543210', password: 'secret1' }]
-  const good = { name: 'Ravi Kumar', email: 'ravi@example.com', phone: '9123456780', password: 'abcdef' }
+  const customers = [{ id: 'c1', name: 'Alice', phone: '9876543210', password: 'secret1' }]
+  const good = { name: 'Ravi Kumar', phone: '9123456780', password: 'abcdef' }
 
   it('accepts a valid new customer', () => {
     expect(validateCustomer(good, customers)).toBeNull()
   })
 
-  it('catches duplicate email regardless of case and duplicate phone regardless of format', () => {
-    expect(validateCustomer({ ...good, email: ' ALICE@example.com ' }, customers)).toMatch(/email/)
+  it('catches a duplicate phone number regardless of format', () => {
     expect(validateCustomer({ ...good, phone: '+91 98765-43210' }, customers)).toMatch(/mobile/)
   })
 
-  it('lets a customer keep their own email and phone when editing', () => {
-    const edit = { name: 'Alice W', email: 'alice@example.com', phone: '9876543210', password: '' }
+  it('lets a customer keep their own phone when editing', () => {
+    const edit = { name: 'Alice W', phone: '9876543210', password: '' }
     expect(validateCustomer(edit, customers, { ignoreId: 'c1', requirePassword: false })).toBeNull()
   })
 
@@ -69,6 +68,30 @@ describe('validateCustomer', () => {
     expect(validateCustomer({ ...good, password: '123' }, customers)).toMatch(/Password/)
     expect(validateCustomer({ ...good, password: '' }, customers, { requirePassword: false })).toBeNull()
     expect(validateCustomer({ ...good, password: '12' }, customers, { requirePassword: false })).toMatch(/Password/)
+  })
+})
+
+describe('places, days and packages', () => {
+  it('compares typed places without caring about capitals or spaces', () => {
+    expect(placeKey('  Tambaram   Ground ')).toBe('tambaram ground')
+    expect(isValidPlace('x')).toBe(false)
+    expect(isValidPlace('Potheri')).toBe(true)
+    expect(placeList([{ place: 'potheri' }, { place: 'Avadi  Road' }, { place: 'avadi road' }])).toEqual([...PLACES, 'Avadi Road'])
+  })
+
+  it('lets customers book only today and tomorrow', () => {
+    expect(bookableDates(NOW)).toEqual(['2026-10-17', '2026-10-18'])
+    expect(isBookableByCustomer('2026-10-18', NOW)).toBe(true)
+    expect(isBookableByCustomer('2026-10-19', NOW)).toBe(false)
+    expect(isBookableByCustomer('2026-10-16', NOW)).toBe(false)
+  })
+
+  it('has Diamond (20 lessons) and Gold (10 lessons), and maps the old names', () => {
+    expect(PACKAGES.diamond.lessons).toBe(20)
+    expect(PACKAGES.gold.lessons).toBe(10)
+    expect(packageOf({ package: 'standard' }).id).toBe('diamond')
+    expect(packageOf({ package: 'ladies' }).id).toBe('gold')
+    expect(packageOf({}).id).toBe('diamond')
   })
 })
 

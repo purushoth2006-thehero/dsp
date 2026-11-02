@@ -5,14 +5,13 @@ import { Field } from '../../ui/Field.jsx'
 import useConfirm from '../../ui/useConfirm.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, BRAND, PLACES, byDateTime, lessonsFor, trainerName, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
+  ATTENDANCE, BRAND, byDateTime, placeKey, placeList, lessonsFor, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
 
 const COLUMNS = [
   { label: 'Date', value: (r) => formatDate(r.date), text: true },
   { label: 'Time', value: (r) => formatTime(r.time), text: true },
   { label: 'Place', value: (r) => r.place },
-  { label: 'Trainer', value: (r) => trainerName(r.trainerId) },
   { label: 'Customer', value: (r) => r.customer?.name ?? 'removed' },
   { label: 'Mobile', value: (r) => r.customer?.phone ?? '', text: true },
   { label: 'Attendance', value: (r) => r.attendance ?? 'not marked' },
@@ -24,6 +23,7 @@ export default function Attendance() {
   const [ask, dialog] = useConfirm()
   const [filterDate, setFilterDate] = useState('')
   const [filterPlace, setFilterPlace] = useState('')
+  const places = useMemo(() => placeList(data.appointments), [data.appointments])
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => {
@@ -32,7 +32,7 @@ export default function Attendance() {
     return data.appointments
       .map((a) => ({ ...a, customer: data.customers.find((c) => c.id === a.customerId) }))
       .filter((a) => !filterDate || a.date === filterDate)
-      .filter((a) => !filterPlace || a.place === filterPlace)
+      .filter((a) => !filterPlace || placeKey(a.place) === placeKey(filterPlace))
       .filter((a) => !q
         || a.customer?.name.toLowerCase().includes(q)
         || (digits && a.customer?.phone.includes(digits)))
@@ -85,7 +85,7 @@ export default function Attendance() {
         <Field label="Place">
           <select value={filterPlace} onChange={(e) => setFilterPlace(e.target.value)}>
             <option value="">All places</option>
-            {PLACES.map((p) => <option key={p}>{p}</option>)}
+            {places.map((p) => <option key={p}>{p}</option>)}
           </select>
         </Field>
         <Field label="Customer">
@@ -111,7 +111,7 @@ export default function Attendance() {
       {rows.length > 0 && (
         <table className={`stack ${filterPlace ? '' : 'no-print'}`}>
           <thead>
-            <tr><th>Date</th><th>Time</th><th>Place</th><th>Trainer</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
+            <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
           </thead>
           <tbody>
             {rows.map((a) => (
@@ -119,7 +119,6 @@ export default function Attendance() {
                 <td data-label="Date">{formatDate(a.date)}</td>
                 <td data-label="Time">{formatTime(a.time)}</td>
                 <td data-label="Place">{a.place}</td>
-                <td data-label="Trainer">{trainerName(a.trainerId)}</td>
                 <td data-label="Customer">{a.customer ? a.customer.name : <i>removed</i>}</td>
                 <td className="print-only">{a.customer?.phone ?? ''}</td>
                 <td className="print-only">{a.attendance ?? 'not marked'}</td>
@@ -144,22 +143,21 @@ export default function Attendance() {
       )}
       {!filterPlace && (
         <div className="print-only print-places">
-          {PLACES.map((place) => {
-            const list = rows.filter((a) => a.place === place)
+          {places.map((place) => {
+            const list = rows.filter((a) => placeKey(a.place) === placeKey(place))
             return (
               <section key={place} className="print-page">
                 <h2>{BRAND}: {place}{filterDate ? `, ${formatDate(filterDate)}` : ''}</h2>
                 {list.length === 0 ? <p>No lessons.</p> : (
                   <table className="stack">
                     <thead>
-                      <tr><th>Date</th><th>Time</th><th>Trainer</th><th>Customer</th><th>Mobile</th><th>Attendance</th></tr>
+                      <tr><th>Date</th><th>Time</th><th>Customer</th><th>Mobile</th><th>Attendance</th></tr>
                     </thead>
                     <tbody>
                       {list.map((a) => (
                         <tr key={a.id}>
                           <td>{formatDate(a.date)}</td>
                           <td>{formatTime(a.time)}</td>
-                          <td>{trainerName(a.trainerId)}</td>
                           <td>{a.customer ? a.customer.name : 'removed'}</td>
                           <td>{a.customer?.phone ?? ''}</td>
                           <td>{a.attendance ?? 'not marked'}</td>
@@ -173,7 +171,7 @@ export default function Attendance() {
           })}
         </div>
       )}
-      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their last lesson (20 for Standard, 10 for Ladies) is marked present.</p>
+      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their last lesson (20 for Diamond, 10 for Gold) is marked present.</p>
       {dialog}
     </section>
   )

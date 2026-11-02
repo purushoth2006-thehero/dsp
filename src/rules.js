@@ -2,27 +2,36 @@
 
 export const BRAND = 'Sridhar Driving School'
 
-// The three trainers. Trainer 3 is the lady trainer. Rename them here (e.g. 'Ravi') and the whole app follows.
-export const TRAINERS = [
-  { id: 't1', name: 'Trainer 1', gender: 'male' },
-  { id: 't2', name: 'Trainer 2', gender: 'male' },
-  { id: 't3', name: 'Trainer 3 (lady)', gender: 'female' },
-]
-// The admin picks a package when creating a customer. It decides how many lessons the course has
-// and which trainers the customer can choose. Reaching the last lesson removes the customer's profile.
+// The admin picks a package when creating a customer. It decides how many lessons the course has.
+// Reaching the last lesson removes the customer's profile.
 export const PACKAGES = {
-  standard: { id: 'standard', label: 'Standard (20 lessons)', lessons: 20, trainerIds: ['t1', 't2'] },
-  ladies: { id: 'ladies', label: 'Ladies package (10 lessons, lady trainer only)', lessons: 10, trainerIds: ['t3'] },
+  diamond: { id: 'diamond', label: 'Diamond (20 lessons)', lessons: 20 },
+  gold: { id: 'gold', label: 'Gold (10 lessons)', lessons: 10 },
 }
-export const DEFAULT_PACKAGE = 'standard'
-export const packageOf = (customer) => PACKAGES[customer?.package] ?? PACKAGES[DEFAULT_PACKAGE]
+export const DEFAULT_PACKAGE = 'diamond'
+// Customers saved before the packages were renamed.
+const LEGACY_PACKAGES = { standard: 'diamond', ladies: 'gold' }
+export const packageId = (id) => (PACKAGES[id] ? id : (LEGACY_PACKAGES[id] ?? DEFAULT_PACKAGE))
+export const packageOf = (customer) => PACKAGES[packageId(customer?.package)]
 export const lessonsFor = (customer) => packageOf(customer).lessons
-export const trainersFor = (customer) => TRAINERS.filter((t) => packageOf(customer).trainerIds.includes(t.id))
-export const trainerName = (id) => TRAINERS.find((t) => t.id === id)?.name ?? 'Not set'
 // A customer booking for themselves may hold at most this many upcoming lessons at once.
 export const MAX_UPCOMING_PER_CUSTOMER = 5
 export const TIME_SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+// Suggested places. A lesson's place is typed by whoever books it, so any name is allowed.
 export const PLACES = ['Mcity_Petrol_Bunk', 'ZeroPoint', 'Potheri']
+export const cleanPlace = (v) => String(v ?? '').trim().replace(/\s+/g, ' ')
+export const placeKey = (v) => cleanPlace(v).toLowerCase()
+export const isValidPlace = (v) => cleanPlace(v).length >= 2 && cleanPlace(v).length <= 40
+// The suggested places plus any other place that has been typed, each name once.
+export function placeList(appointments = [], base = PLACES) {
+  const seen = new Set(base.map(placeKey))
+  const extra = []
+  for (const a of appointments) {
+    const k = placeKey(a.place)
+    if (k && !seen.has(k)) { seen.add(k); extra.push(cleanPlace(a.place)) }
+  }
+  return [...base, ...extra]
+}
 export const ATTENDANCE = { PRESENT: 'present', ABSENT: 'absent' }
 export const ROLES = { ADMIN: 'admin', CUSTOMER: 'customer' }
 export const MIN_PASSWORD = 6
@@ -90,14 +99,9 @@ export function normalizePhone(value) {
 
 export const isValidPhone = (v) => /^[6-9]\d{9}$/.test(normalizePhone(v))
 
-export const normalizeEmail = (v) => String(v ?? '').trim().toLowerCase()
-
-export const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizeEmail(v))
-
 // Returns an error message, or null when the form is fine.
 export function validateCustomer(form, customers, { ignoreId = null, requirePassword = true } = {}) {
   if (String(form.name ?? '').trim().length < 2) return 'Please enter the full name.'
-  if (!isValidEmail(form.email)) return 'Please enter a valid email address.'
   if (!isValidPhone(form.phone)) return 'Enter a valid 10-digit mobile number, e.g. 9876543210.'
   if (form.package !== undefined && !PACKAGES[form.package]) return 'Please choose a package.'
 
@@ -107,9 +111,6 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
   }
 
   const others = customers.filter((c) => c.id !== ignoreId)
-  if (others.some((c) => normalizeEmail(c.email) === normalizeEmail(form.email))) {
-    return 'A customer with that email already exists.'
-  }
   if (others.some((c) => normalizePhone(c.phone) === normalizePhone(form.phone))) {
     return 'A customer with that mobile number already exists.'
   }
@@ -128,10 +129,14 @@ export function closedDayName(date) {
   return CLOSED_WEEKDAYS.includes(day) ? DAY_NAMES[day] : null
 }
 
+// Customers can book only today and tomorrow (school time). The admin can schedule any later day.
+export const bookableDates = (now = new Date()) => [toLocalDate(now), addDays(1, now)]
+export const isBookableByCustomer = (date, now = new Date()) => bookableDates(now).includes(date)
+
 // Returns null when the slot is free, otherwise { code, message }.
 export function getSlotConflict(slot, appointments, { customerId, ignoreId = null, now = new Date() } = {}) {
-  const { date, time, place, trainerId } = slot
-  if (!date || !time || !place) return { code: 'incomplete', message: 'Please choose a date, time and place.' }
+  const { date, time, place } = slot
+  if (!date || !time || !cleanPlace(place)) return { code: 'incomplete', message: 'Please choose a date, time and place.' }
   const closed = closedDayName(date)
   if (closed) return { code: 'closed', message: `The school is closed on ${closed}s. Please choose another day.` }
   if (isPast(date, time, now)) {
@@ -142,19 +147,17 @@ export function getSlotConflict(slot, appointments, { customerId, ignoreId = nul
   if (customerId && sameSlot.some((a) => a.customerId === customerId)) {
     return { code: 'mine', message: 'You already have a lesson at that time.' }
   }
-  if (sameSlot.some((a) => a.place === place)) {
-    return { code: 'booked', message: `${place} is already booked at ${formatTime(time)} on ${formatDate(date)}. Pick another slot.` }
-  }
-  if (trainerId && sameSlot.some((a) => a.trainerId === trainerId)) {
-    return { code: 'trainer', message: `${trainerName(trainerId)} already has a lesson at ${formatTime(time)} on ${formatDate(date)}. Pick another trainer or time.` }
+  if (sameSlot.some((a) => placeKey(a.place) === placeKey(place))) {
+    return { code: 'booked', message: `${cleanPlace(place)} is already booked at ${formatTime(time)} on ${formatDate(date)}. Pick another slot.` }
   }
   return null
 }
 
 // ---------- dashboard numbers ----------
 
-export function computeStats(data, now = new Date(), places = PLACES) {
+export function computeStats(data, now = new Date(), basePlaces = PLACES) {
   const { customers, appointments } = data
+  const places = placeList(appointments, basePlaces)
   const today = toLocalDate(now)
   const past = (a) => isPast(a.date, a.time, now)
 
@@ -175,9 +178,9 @@ export function computeStats(data, now = new Date(), places = PLACES) {
     // Upcoming lessons counted day by day (days with no lessons are left out).
     byDay: [...new Set(upcomingList.map((a) => a.date))].sort().map((date) => {
       const day = upcomingList.filter((a) => a.date === date)
-      return { date, count: day.length, byPlace: places.map((place) => ({ place, count: day.filter((a) => a.place === place).length })) }
+      return { date, count: day.length, byPlace: places.map((place) => ({ place, count: day.filter((a) => placeKey(a.place) === placeKey(place)).length })) }
     }),
-    byPlace: places.map((place) => ({ place, count: upcomingList.filter((a) => a.place === place).length })),
+    byPlace: places.map((place) => ({ place, count: upcomingList.filter((a) => placeKey(a.place) === placeKey(place)).length })),
   }
 }
 

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import {
-  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, PACKAGES, trainerName as trainerNameOf, DEFAULT_PACKAGE, PLACES, TIME_SLOTS, TRAINERS, byDateTime, addDays, lessonsFor, packageOf, toLocalDate, getSlotConflict, isPast,
-  normalizeEmail, normalizePhone, nowInZone, validateCustomer,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, DEFAULT_PACKAGE, TIME_SLOTS, byDateTime, addDays, lessonsFor,
+  cleanPlace, isBookableByCustomer, isPast, isValidPlace, normalizePhone, nowInZone, packageId, placeKey, toLocalDate,
+  getSlotConflict, validateCustomer,
 } from '../src/rules.js'
 import { DUMMY_HASH, hashPassword, verifyPassword } from './security.js'
 
@@ -18,15 +19,13 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const str = (v) => (typeof v === 'string' ? v : '')
 const newId = (prefix) => prefix + randomUUID().replace(/-/g, '').slice(0, 12)
-const publicCustomer = ({ id, name, email, phone, package: pkg }) => ({ id, name, email, phone, package: PACKAGES[pkg] ? pkg : DEFAULT_PACKAGE })
+const publicCustomer = ({ id, name, phone, package: pkg }) => ({ id, name, phone, package: packageId(pkg) })
 const byName = (a, b) => a.name.localeCompare(b.name)
 
 // Locks make double-booking impossible even when two requests arrive at the same moment.
-const slotKey = (a) => `lock:slot:${a.date}|${a.time}|${a.place}`
+const slotKey = (a) => `lock:slot:${a.date}|${a.time}|${placeKey(a.place)}`
 const custKey = (a) => `lock:cust:${a.customerId}|${a.date}|${a.time}`
-const trainerKey = (a) => `lock:trainer:${a.trainerId}|${a.date}|${a.time}`
-// Lessons from before trainers existed have no trainerId and so no trainer lock.
-const keysOf = (a) => [slotKey(a), custKey(a), ...(a.trainerId ? [trainerKey(a)] : [])]
+const keysOf = (a) => [slotKey(a), custKey(a)]
 
 function isRealDate(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -36,7 +35,7 @@ function isRealDate(iso) {
 
 function cleanCustomerForm(form) {
   const f = form && typeof form === 'object' ? form : {}
-  return { name: str(f.name), email: str(f.email), phone: str(f.phone), password: str(f.password), package: str(f.package) || DEFAULT_PACKAGE }
+  return { name: str(f.name), phone: str(f.phone), password: str(f.password), package: str(f.package) || DEFAULT_PACKAGE }
 }
 
 function parseDate(date) {
@@ -48,8 +47,8 @@ function parseSlot(input) {
   const { date, time, place } = input && typeof input === 'object' ? input : {}
   parseDate(date)
   if (!TIME_SLOTS.includes(time)) throw new HttpError(400, 'Please choose a valid time slot.')
-  if (!PLACES.includes(place)) throw new HttpError(400, 'Please choose a valid place.')
-  return { date, time, place }
+  if (!isValidPlace(place)) throw new HttpError(400, 'Please type the place (2 to 40 characters).')
+  return { date, time, place: cleanPlace(place) }
 }
 
 const conflictError = (c) => new HttpError(c.code === 'past' || c.code === 'incomplete' || c.code === 'closed' ? 400 : 409, c.message)
@@ -88,13 +87,11 @@ export function createService(store, { now = () => nowInZone() } = {}) {
     await store.hdel(CUSTOMERS, id)
   }
 
-  // The trainer must exist and be one this customer's package allows.
-  function parseTrainer(trainerId, customer) {
-    if (!TRAINERS.some((t) => t.id === trainerId)) throw new HttpError(400, 'Please choose a trainer.')
-    if (!packageOf(customer).trainerIds.includes(trainerId)) {
-      throw new HttpError(400, 'That trainer is not available for this customer\'s package.')
+  // Customers can book only today and tomorrow. The admin has no such limit.
+  function assertCustomerWindow(date, actor) {
+    if (actor.role === 'customer' && !isBookableByCustomer(date, now())) {
+      throw new HttpError(400, 'You can book only for today or tomorrow.')
     }
-    return trainerId
   }
 
   // A customer may only touch their own lessons. Someone else's lesson looks like it doesn't exist.
@@ -121,11 +118,8 @@ export function createService(store, { now = () => nowInZone() } = {}) {
 
     async verifyLogin(identifier, password) {
       const id = str(identifier).trim()
-      const email = normalizeEmail(id)
       const phone = normalizePhone(id)
-      const customer = (await customers()).find(
-        (c) => normalizeEmail(c.email) === email || (phone && normalizePhone(c.phone) === phone)
-      )
+      const customer = phone && (await customers()).find((c) => normalizePhone(c.phone) === phone)
       const ok = await verifyPassword(str(password), customer?.passwordHash ?? DUMMY_HASH)
       return customer && ok ? customer : null
     },
@@ -139,9 +133,8 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       const customer = {
         id: newId('c'),
         name: f.name.trim(),
-        email: normalizeEmail(f.email),
         phone: normalizePhone(f.phone),
-        package: f.package,
+        package: packageId(f.package),
         passwordHash: await hashPassword(f.password),
         createdAt: new Date().toISOString(),
       }
@@ -155,7 +148,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       const f = cleanCustomerForm(form)
       const error = validateCustomer(f, await customers(), { ignoreId: id, requirePassword: false })
       if (error) throw new HttpError(400, error)
-      const packageChanged = f.package !== (existing.package ?? DEFAULT_PACKAGE)
+      const packageChanged = f.package !== packageId(existing.package)
       if (packageChanged && (await appointments()).some((a) => a.customerId === id)) {
         throw new HttpError(409, 'The package can only be changed while the customer has no lessons booked.')
       }
@@ -163,7 +156,6 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         ...existing,
         package: f.package,
         name: f.name.trim(),
-        email: normalizeEmail(f.email),
         phone: normalizePhone(f.phone),
         passwordHash: f.password ? await hashPassword(f.password) : existing.passwordHash,
       }
@@ -206,8 +198,8 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         .filter((a) => a.date === date)
         .sort(byDateTime)
         .map((a) => (a.customerId === actor.id
-          ? { time: a.time, place: a.place, trainerId: a.trainerId ?? null, mine: true, id: a.id }
-          : { time: a.time, place: a.place, trainerId: a.trainerId ?? null, mine: false }))
+          ? { time: a.time, place: a.place, mine: true, id: a.id }
+          : { time: a.time, place: a.place, mine: false }))
     },
 
     // The admin books for any customer; a customer always books for themselves.
@@ -215,7 +207,8 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       const customerId = actor.role === 'customer' ? actor.id : str(input?.customerId)
       const customer = await store.hget(CUSTOMERS, customerId)
       if (!customer) throw new HttpError(404, 'Customer not found.')
-      const slot = { ...parseSlot(input), trainerId: parseTrainer(input?.trainerId, customer) }
+      const slot = parseSlot(input)
+      assertCustomerWindow(slot.date, actor)
 
       const all = await appointments()
       const theirs = all.filter((a) => a.customerId === customerId)
@@ -247,9 +240,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
           await store.hdel(APPOINTMENTS, appt.id)
           throw new HttpError(409, key.startsWith('lock:slot')
             ? `${appt.place} was just booked at that time. Please pick another slot.`
-            : key.startsWith('lock:trainer')
-              ? `${trainerNameOf(appt.trainerId)} was just booked at that time. Please pick another time or trainer.`
-              : 'This customer already has a lesson at that time.')
+            : 'This customer already has a lesson at that time.')
         }
         claimed.push(key)
       }
@@ -262,8 +253,8 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       assertCanChange(appt, actor)
       if (appt.attendance || isPast(appt.date, appt.time, now())) throw new HttpError(409, LOCKED_MESSAGE)
 
-      const owner = await store.hget(CUSTOMERS, appt.customerId)
-      const slot = { ...parseSlot(input), trainerId: parseTrainer(input?.trainerId ?? appt.trainerId, owner) }
+      const slot = parseSlot(input)
+      assertCustomerWindow(slot.date, actor)
       const conflict = getSlotConflict(slot, await appointments(), {
         customerId: appt.customerId, ignoreId: id, now: now(),
       })

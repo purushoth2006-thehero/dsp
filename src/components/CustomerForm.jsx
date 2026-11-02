@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Field, PasswordInput } from '../ui/Field.jsx'
-import { DEFAULT_PACKAGE, MIN_PASSWORD, PACKAGES, TRAINERS } from '../rules.js'
+import { DEFAULT_PACKAGE, MIN_PASSWORD, PACKAGES, packageId } from '../rules.js'
 
-const EMPTY = { name: '', email: '', phone: '', password: '', package: DEFAULT_PACKAGE }
+const EMPTY = { name: '', phone: '', password: '', package: DEFAULT_PACKAGE }
 
 // Used by the admin to add and edit customers.
 // onSubmit(form) may be async and must resolve to { ok, error }.
@@ -30,26 +30,21 @@ export default function CustomerForm({
       <Field label="Full name">
         <input value={form.name} onChange={set('name')} autoComplete="off" required />
       </Field>
-      <Field label="Email">
-        <input type="email" value={form.email} onChange={set('email')} autoComplete="off" required />
-      </Field>
       <Field label="Mobile number" hint="10-digit Indian mobile number">
         <input type="tel" inputMode="numeric" value={form.phone} onChange={set('phone')} autoComplete="off" placeholder="9876543210" required />
       </Field>
       <Field
         label="Package"
-        hint={packageLocked
-          ? 'The package cannot be changed once lessons are booked.'
-          : `Standard: choose from ${TRAINERS.filter((t) => PACKAGES.standard.trainerIds.includes(t.id)).map((t) => t.name).join(' or ')}. Ladies: lady trainer only.`}
+        hint={packageLocked ? 'The package cannot be changed once lessons are booked.' : 'Diamond is 20 lessons, Gold is 10 lessons.'}
       >
-        <select value={form.package} onChange={set('package')} disabled={packageLocked}>
+        <select value={packageId(form.package)} onChange={set('package')} disabled={packageLocked}>
           {Object.values(PACKAGES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
       </Field>
       <Field
         label={requirePassword ? 'Password' : 'New password'}
         hint={requirePassword
-          ? `At least ${MIN_PASSWORD} characters. Give it to the customer: they sign in with their email or mobile number and this password.`
+          ? `At least ${MIN_PASSWORD} characters. Give it to the customer: they sign in with their mobile number and this password.`
           : 'Leave blank to keep the current password. Setting a new one signs the customer out everywhere.'}
       >
         <PasswordInput value={form.password} onChange={set('password')} autoComplete="new-password" required={requirePassword} />

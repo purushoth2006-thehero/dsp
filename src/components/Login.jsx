@@ -49,7 +49,7 @@ export default function Login() {
         </div>
 
         <form className="form" onSubmit={submit}>
-          <Field label={isAdmin ? 'Username' : 'Email or mobile number'}>
+          <Field label={isAdmin ? 'Username' : 'Mobile number'}>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}

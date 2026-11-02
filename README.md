@@ -14,25 +14,24 @@ A lesson-scheduling and attendance app for a driving school, built with React, V
 - Lessons: schedule, reschedule and cancel lessons for any customer. Taken times are greyed out
 - Attendance: filter by date, place or customer, mark present / absent, export the list to CSV
 
-**Trainers and packages**
-- Three trainers (Trainer 1, Trainer 2 and Trainer 3, the lady trainer). Rename them in `TRAINERS` in `src/rules.js`
-- The admin picks a package when creating a customer: **Standard** (20 lessons, Trainer 1 or 2) or **Ladies** (10 lessons, lady trainer only)
-- Every lesson has a trainer, chosen by the admin or by the customer. A trainer can't have two lessons at the same time
+**Packages**
+- The admin picks a package when creating a customer: **Diamond** (20 lessons) or **Gold** (10 lessons)
 - The package can be changed only while the customer has no lessons
+- The place of a lesson is typed (suggestions are offered), so any place can be used
 
 **Customers**
-- Sign in with email or mobile number and the password the school gave them
-- Book, change and cancel their own lessons (taken times are greyed out; other customers' names are never shown)
+- Sign in with their mobile number and the password the school gave them
+- Book, change and cancel their own lessons for **today or tomorrow only** (taken times are greyed out; other customers' names are never shown)
 - See upcoming and past lessons, attendance and progress (lessons attended out of 20)
 - At most 5 upcoming lessons at a time, and no more lessons than the package has (missed lessons can be replaced)
-- After the last lesson of the package (20, or 10 for Ladies) is marked present, the profile and its lessons are removed automatically (the admin is asked to confirm first)
+- After the last lesson of the package (20 for Diamond, 10 for Gold) is marked present, the profile and its lessons are removed automatically (the admin is asked to confirm first)
 
 **Data is shared.** Everything is stored on the server, so every phone and browser sees the same data. Open pages refresh themselves every 30 seconds.
 
 ## Lesson reminders (WhatsApp and SMS)
 
 Customers get a message the evening before (about 6 pm India time) and again the morning of the lesson (about 7 am):
-"Hello Asha, reminder from Sridhar Driving School: you have a driving class tomorrow (...) at 9:00 AM at Potheri with Trainer 1."
+"Hello Asha, reminder from Sridhar Driving School: you have a driving class tomorrow (...) at 9:00 AM at Potheri "
 
 It uses Twilio and Vercel Cron, and stays off until you set it up:
 

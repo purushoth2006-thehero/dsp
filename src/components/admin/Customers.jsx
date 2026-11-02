@@ -32,7 +32,6 @@ export default function Customers() {
     return data.customers
       .filter((c) => !q
         || c.name.toLowerCase().includes(q)
-        || c.email.toLowerCase().includes(q)
         || (digits && c.phone.includes(digits)))
       .map((c) => {
         const appts = data.appointments.filter((a) => a.customerId === c.id)
@@ -72,7 +71,7 @@ export default function Customers() {
       <div className="toolbar">
         <h2>Customers ({rows.length}{query ? ` of ${data.customers.length}` : ''})</h2>
         <Field label="Search">
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, email or mobile" />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or mobile" />
         </Field>
       </div>
 
@@ -85,13 +84,12 @@ export default function Customers() {
       {rows.length > 0 && (
         <table className="stack">
           <thead>
-            <tr><th>Name</th><th>Email</th><th>Mobile</th><th>Package</th><th>Lessons</th><th>Present</th><th>Absent</th><th><span className="visually-hidden">Actions</span></th></tr>
+            <tr><th>Name</th><th>Mobile</th><th>Package</th><th>Lessons</th><th>Present</th><th>Absent</th><th><span className="visually-hidden">Actions</span></th></tr>
           </thead>
           <tbody>
             {rows.map((c) => (
               <tr key={c.id}>
                 <td data-label="Name">{c.name}</td>
-                <td data-label="Email">{c.email}</td>
                 <td data-label="Mobile">{c.phone}</td>
                 <td data-label="Package">{packageOf(c).label.split(' (')[0]}</td>
                 <td data-label="Lessons">{c.total}/{packageOf(c).lessons}</td>
@@ -111,7 +109,7 @@ export default function Customers() {
       {editing && (
         <Modal title={`Edit ${editing.name}`} onClose={() => setEditing(null)}>
           <CustomerForm
-            initial={{ name: editing.name, email: editing.email, phone: editing.phone, package: editing.package }}
+            initial={{ name: editing.name, phone: editing.phone, package: editing.package }}
             packageLocked={data.appointments.some((a) => a.customerId === editing.id)}
             requirePassword={false}
             submitLabel="Save changes"

@@ -26,17 +26,17 @@ function setup() {
     await handler({ url: `/api/cron/reminders${kind ? `?kind=${kind}` : ''}`, method: 'GET', headers: auth ? { authorization: auth } : {}, socket: {} }, res)
     return { status, body: JSON.parse(body) }
   }
-  const customer = (n) => service.addCustomer({ name: `Asha Kumar ${n}`, email: `a${n}@example.com`, phone: `98765000${n}0`, password: 'secret123' })
+  const customer = (n) => service.addCustomer({ name: `Asha Kumar ${n}`, phone: `98765000${n}0`, password: 'secret123' })
   const lesson = (customerId, date, time, over = {}) =>
-    service.bookAppointment({ customerId, date, time, place: PLACES[0], trainerId: 't1', ...over })
+    service.bookAppointment({ customerId, date, time, place: PLACES[0], ...over })
   return { service, sent, call, customer, lesson }
 }
 
 describe('lesson reminders', () => {
-  it('words the message with the day, time, place and trainer', () => {
-    const msg = buildReminder('day-before', { date: '2026-10-18', time: '09:00', place: PLACES[1], trainerId: 't3' }, { name: 'Priya Sharma' })
-    expect(msg.text).toBe(`Hello Priya, reminder from Sridhar Driving School: you have a driving class tomorrow (Sun, 18 Oct, 2026) at 9:00 AM at ${PLACES[1]} with Trainer 3 (lady). Please arrive on time.`)
-    expect(msg.variables).toMatchObject({ 1: 'Priya', 2: 'tomorrow', 4: '9:00 AM', 5: PLACES[1], 6: 'Trainer 3 (lady)' })
+  it('words the message with the day, time and place', () => {
+    const msg = buildReminder('day-before', { date: '2026-10-18', time: '09:00', place: PLACES[1] }, { name: 'Priya Sharma' })
+    expect(msg.text).toBe(`Hello Priya, reminder from Sridhar Driving School: you have a driving class tomorrow (Sun, 18 Oct, 2026) at 9:00 AM at ${PLACES[1]}. Please arrive on time.`)
+    expect(msg.variables).toMatchObject({ 1: 'Priya', 2: 'tomorrow', 4: '9:00 AM', 5: PLACES[1] })
   })
 
   it('sends tomorrow\'s lessons the evening before, once only', async () => {
@@ -71,7 +71,7 @@ describe('lesson reminders', () => {
     const a = await customer(1)
     const l = await lesson(a.id, '2026-10-18', '09:00')
     await call('day-before')
-    await service.rescheduleAppointment(l.id, { date: '2026-10-18', time: '10:00', place: PLACES[0], trainerId: 't1' })
+    await service.rescheduleAppointment(l.id, { date: '2026-10-18', time: '10:00', place: PLACES[0] })
     expect((await call('day-before')).body.sent).toBe(1)
     expect(sent).toHaveLength(2)
     await service.cancelAppointment(l.id)
@@ -92,8 +92,8 @@ describe('lesson reminders', () => {
       await handler({ url: '/api/cron/reminders?kind=day-before', method: 'GET', headers: { authorization: `Bearer ${SECRET}` }, socket: {} }, { setHeader() {}, end(b) { body = b }, set statusCode(v) { void v } })
       return JSON.parse(body)
     }
-    const c = await service.addCustomer({ name: 'Asha', email: 'a@example.com', phone: '9876500001', password: 'secret123' })
-    await service.bookAppointment({ customerId: c.id, date: '2026-10-18', time: '09:00', place: PLACES[0], trainerId: 't1' })
+    const c = await service.addCustomer({ name: 'Asha', phone: '9876500001', password: 'secret123' })
+    await service.bookAppointment({ customerId: c.id, date: '2026-10-18', time: '09:00', place: PLACES[0] })
     expect(await run()).toMatchObject({ due: 1, sent: 0, failed: 1, errors: ['sms: bad number'] })
     works = true
     expect(await run()).toMatchObject({ due: 1, sent: 1 })

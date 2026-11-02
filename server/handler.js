@@ -120,7 +120,7 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
       payload = { r: 'admin', ph: fingerprint(cfg.adminPass), exp: nowSec + maxAge }
     } else if (body.role === 'customer') {
       const customer = await service.verifyLogin(body.identifier, body.password)
-      if (!customer) throw new HttpError(401, 'Invalid email/mobile number or password.')
+      if (!customer) throw new HttpError(401, 'Invalid mobile number or password.')
       maxAge = CUSTOMER_TTL
       payload = { r: 'customer', id: customer.id, ph: fingerprint(customer.passwordHash), exp: nowSec + maxAge }
     } else {

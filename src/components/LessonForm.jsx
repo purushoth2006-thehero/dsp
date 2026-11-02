@@ -4,9 +4,9 @@ import { useToast } from '../ui/toastContext.js'
 import useNow from '../ui/useNow.js'
 import { Field } from '../ui/Field.jsx'
 import { fetchSlots } from '../api.js'
-import { PLACES, TRAINERS, closedDayName, trainersFor,  TIME_SLOTS, formatDate, formatTime, getSlotConflict, toLocalDate } from '../rules.js'
+import { TIME_SLOTS, addDays, closedDayName, formatDate, formatTime, getSlotConflict, placeList, toLocalDate } from '../rules.js'
 
-const SLOT_NOTE = { trainer: ' (trainer busy)', closed: ' (closed)', past: ' (passed)', booked: ' (booked)', mine: ' (you already have a lesson)' }
+const SLOT_NOTE = { closed: ' (closed)', past: ' (passed)', booked: ' (booked)', mine: ' (you already have a lesson)' }
 const ADMIN_NOTE = { ...SLOT_NOTE, mine: ' (customer has a lesson)' }
 
 // Book a new lesson, or move `editing`. The admin picks the customer; a customer books for themselves.
@@ -18,8 +18,8 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
   const isAdmin = Boolean(customers)
 
   const [form, setForm] = useState(() => (editing
-    ? { customerId: editing.customerId, date: editing.date, time: editing.time, place: editing.place, trainerId: editing.trainerId ?? '' }
-    : { customerId: fixedCustomerId ?? '', date: '', time: TIME_SLOTS[0], place: PLACES[0], trainerId: '' }))
+    ? { customerId: editing.customerId, date: editing.date, time: editing.time, place: editing.place }
+    : { customerId: fixedCustomerId ?? '', date: '', time: TIME_SLOTS[0], place: '' }))
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [taken, setTaken] = useState({ date: '', slots: [] }) // other people's lessons on form.date (customers only)
@@ -41,14 +41,9 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
     : []
   const checking = !isAdmin && Boolean(form.date) && taken.date !== form.date
 
-  // Only the trainers this customer's package allows. The lady trainer is for the ladies package.
-  const customer = data.customers.find((c) => c.id === form.customerId)
-  const trainers = customer ? trainersFor(customer) : TRAINERS
-  const trainerId = trainers.some((t) => t.id === form.trainerId) ? form.trainerId : (trainers[0]?.id ?? '')
-
   const conflictFor = (time) => {
     if (!form.date) return null
-    return getSlotConflict({ date: form.date, time, place: form.place, trainerId }, [...data.appointments, ...others], {
+    return getSlotConflict({ date: form.date, time, place: form.place }, [...data.appointments, ...others], {
       customerId: form.customerId || undefined, ignoreId: editing?.id, now,
     })
   }
@@ -58,6 +53,13 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
 
   const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'the customer'
 
+  const today = toLocalDate(now)
+  const days = [
+    { key: 'today', label: 'Today', date: today },
+    { key: 'tomorrow', label: 'Tomorrow', date: addDays(1, now) },
+  ]
+  const otherDay = Boolean(form.date) && !days.some((d) => d.date === form.date)
+
   const submit = async (e) => {
     e.preventDefault()
     setError('')
@@ -65,7 +67,7 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
       setError('Please choose a customer.')
       return
     }
-    const slot = { date: form.date, time, place: form.place, trainerId }
+    const slot = { date: form.date, time, place: form.place.trim() }
     setBusy(true)
     const result = editing
       ? await rescheduleAppointment(editing.id, slot)
@@ -95,21 +97,38 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
         </Field>
       )}
 
-      <Field label="Trainer" hint={customer && trainers.length === 1 ? 'Your package uses this trainer.' : undefined}>
-        <select value={trainerId} onChange={set('trainerId')} required>
-          {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
-      </Field>
+      <div className="field" role="group" aria-label="Day">
+        <span className="field-label">Day</span>
+        <div className="tabs compact-row">
+          {days.map((d) => (
+            <button
+              key={d.key}
+              type="button"
+              className={form.date === d.date ? 'active' : ''}
+              aria-pressed={form.date === d.date}
+              onClick={() => setForm((f) => ({ ...f, date: d.date }))}
+            >
+              {d.label}{closedDayName(d.date) ? ' (closed)' : ''}
+              <small>{formatDate(d.date)}</small>
+            </button>
+          ))}
+          {isAdmin && (
+            <button type="button" className={otherDay ? 'active' : ''} aria-pressed={otherDay} onClick={() => setForm((f) => ({ ...f, date: otherDay ? f.date : addDays(2, now) }))}>
+              Another day
+            </button>
+          )}
+        </div>
+        {isAdmin && otherDay && (
+          <input type="date" aria-label="Date" value={form.date} min={toLocalDate(now)} onChange={set('date')} required />
+        )}
+      </div>
 
-      <Field label="Date">
-        <input type="date" value={form.date} min={toLocalDate(now)} onChange={set('date')} required />
+      <Field label="Place" hint="Type the place, or pick one from the list.">
+        <input list="lesson-places" value={form.place} onChange={set('place')} maxLength={40} autoComplete="off" placeholder="e.g. Potheri" required />
       </Field>
-
-      <Field label="Place">
-        <select value={form.place} onChange={set('place')}>
-          {PLACES.map((p) => <option key={p}>{p}</option>)}
-        </select>
-      </Field>
+      <datalist id="lesson-places">
+        {placeList(data.appointments).map((p) => <option key={p} value={p} />)}
+      </datalist>
 
       <Field label="Time">
         <select value={time} onChange={set('time')}>
@@ -126,12 +145,11 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
 
       {checking && <p className="muted">Checking free times…</p>}
       {closedDayName(form.date) && <p className="error">The school is closed on {closedDayName(form.date)}s. Please choose another day.</p>}
-      {noSlots && !closedDayName(form.date) && <p className="error">No free slots on this date at {form.place}. Try another day or place.</p>}
+      {noSlots && !closedDayName(form.date) && <p className="error">No free slots on this day at {form.place || 'this place'}. Try another day or place.</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      {!customer && isAdmin && <p className="muted">Choose a customer first: the trainers shown depend on their package.</p>}
 
       <div className="form-actions">
-        <button className="primary" type="submit" disabled={noSlots || checking || busy}>
+        <button className="primary" type="submit" disabled={noSlots || checking || busy || !form.date || !form.place.trim()}>
           {busy ? 'Saving…' : editing ? 'Save changes' : isAdmin ? 'Schedule lesson' : 'Book lesson'}
         </button>
         {editing && <button className="ghost" type="button" onClick={onDone}>Cancel edit</button>}
