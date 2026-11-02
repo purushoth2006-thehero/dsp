@@ -46,7 +46,7 @@ Each lesson is reminded once per kind; moving a lesson resets its reminders; a m
 - Times are always India time (Asia/Kolkata), whatever the visitor's device is set to
 - No lessons in the past, and no two lessons at the same branch, date and time
 - A customer cannot have two lessons at the same time. Simultaneous requests cannot double-book a slot
-- Email and mobile number must be unique. Mobile numbers are validated (10-digit Indian format)
+- Mobile numbers must be unique. They are are validated (10-digit Indian format)
 - Lessons that have started or been marked cannot be changed or cancelled
 - A customer can only see and change their own lessons; customer accounts, attendance and other people's lessons are admin-only
 
@@ -104,6 +104,6 @@ Routes: `/login`, `/customer`, `/admin`, `/admin/customers`, `/admin/add`, `/adm
 
 ## Roadmap
 
-- [ ] WhatsApp / SMS / email lesson reminders
+- [ ] Instructor management and online payments
 - [ ] Instructor management and payments
 - [ ] Tamil / English language toggle
