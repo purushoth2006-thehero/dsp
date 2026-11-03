@@ -334,6 +334,24 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await admin.call('GET', '/api/session')).body.appointments.map((x) => x.id)).toEqual([lessonB.id])
   })
 
+  it('lets a customer book only one lesson per day, while the admin can book more', async () => {
+    const admin = await adminBrowser()
+    const c = await addCustomer(admin)
+    const customer = await customerBrowser(c)
+    const first = await book(customer, c.id, { date: TOMORROW, time: '09:00' })
+    expect(first.status).toBe(201)
+    const second = await book(customer, c.id, { date: TOMORROW, time: '11:00' })
+    expect(second.status).toBe(409)
+    expect(second.body.error).toMatch(/one lesson per day/)
+    expect((await book(customer, c.id, { date: TODAY, time: '11:00' })).status).toBe(201) // another day is fine
+    // Moving the lesson within its own day is fine.
+    expect((await customer.call('PUT', `/api/appointments/${first.body.appointment.id}`, { date: TOMORROW, time: '10:00', place: PLACES[0] })).status).toBe(200)
+    expect((await book(admin, c.id, { date: TOMORROW, time: '13:00' })).status).toBe(201)
+    // Moving a lesson onto a day that already has another of theirs is refused.
+    const other = await book(admin, c.id, { date: FUTURE, time: '09:00' })
+    expect((await customer.call('PUT', `/api/appointments/${other.body.appointment.id}`, { date: TOMORROW, time: '14:00', place: PLACES[0] })).status).toBe(409)
+  })
+
   it('lets a customer book only today and tomorrow, while the admin can book any day', async () => {
     const admin = await adminBrowser()
     const c = await addCustomer(admin)
@@ -391,26 +409,25 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const c = await addCustomer(admin)
     const customer = await customerBrowser(c)
 
-    // A customer can only book tomorrow, so these are tomorrow's slots one after another.
-    const soon = (i) => ({ date: TOMORROW, time: TIME_SLOTS[i], place: PLACES[0] })
+    // The admin schedules a customer's next lessons ahead of time.
     const ids = []
     for (let i = 0; i < MAX_UPCOMING_PER_CUSTOMER; i += 1) {
-      const res = await book(customer, c.id, soon(i))
+      const res = await book(admin, c.id, slotNumber(i))
       expect(res.status).toBe(201)
       ids.push(res.body.appointment.id)
     }
-    const over = await book(customer, c.id, soon(MAX_UPCOMING_PER_CUSTOMER))
+    const over = await book(customer, c.id, { date: TOMORROW, time: '09:00' })
     expect(over.status).toBe(409)
     expect(over.body.error).toMatch(new RegExp(`up to ${MAX_UPCOMING_PER_CUSTOMER} upcoming`))
 
     // The limit is for self-booking only: the admin can still schedule more.
-    expect((await book(admin, c.id, soon(MAX_UPCOMING_PER_CUSTOMER))).status).toBe(201)
+    expect((await book(admin, c.id, slotNumber(MAX_UPCOMING_PER_CUSTOMER))).status).toBe(201)
 
-    // Cancelling one makes room again.
+    // Cancelling one is not enough while 5 are still upcoming; cancelling two makes room.
     expect((await customer.call('DELETE', `/api/appointments/${ids[0]}`)).status).toBe(200)
-    expect((await book(customer, c.id, soon(MAX_UPCOMING_PER_CUSTOMER + 1))).status).toBe(409) // still 5 upcoming
+    expect((await book(customer, c.id, { date: TOMORROW, time: '09:00' })).status).toBe(409)
     expect((await customer.call('DELETE', `/api/appointments/${ids[1]}`)).status).toBe(200)
-    expect((await book(customer, c.id, soon(MAX_UPCOMING_PER_CUSTOMER + 1))).status).toBe(201)
+    expect((await book(customer, c.id, { date: TOMORROW, time: '09:00' })).status).toBe(201)
   }, 20000)
 
   it('stops more than the 20 lessons of the course being booked, but lets missed lessons be replaced', async () => {

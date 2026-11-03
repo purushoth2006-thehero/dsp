@@ -88,6 +88,13 @@ export function createService(store, { now = () => nowInZone() } = {}) {
   }
 
   // Customers can book only today and tomorrow. The admin has no such limit.
+  const ONE_PER_DAY = 'You can book only one lesson per day.'
+  function assertOneLessonPerDay(slot, all, actor, customerId, ignoreId = null) {
+    if (actor.role === 'customer' && all.some((a) => a.customerId === customerId && a.id !== ignoreId && a.date === slot.date)) {
+      throw new HttpError(409, ONE_PER_DAY)
+    }
+  }
+
   function assertCustomerWindow(date, actor) {
     if (actor.role === 'customer' && !isBookableByCustomer(date, now())) {
       throw new HttpError(400, 'You can book only for today or tomorrow.')
@@ -226,6 +233,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         }
       }
 
+      assertOneLessonPerDay(slot, all, actor, customerId)
       const conflict = getSlotConflict(slot, all, { customerId, now: now() })
       if (conflict) throw conflictError(conflict)
 
@@ -255,7 +263,9 @@ export function createService(store, { now = () => nowInZone() } = {}) {
 
       const slot = parseSlot(input)
       assertCustomerWindow(slot.date, actor)
-      const conflict = getSlotConflict(slot, await appointments(), {
+      const everyone = await appointments()
+      assertOneLessonPerDay(slot, everyone, actor, appt.customerId, id)
+      const conflict = getSlotConflict(slot, everyone, {
         customerId: appt.customerId, ignoreId: id, now: now(),
       })
       if (conflict) throw conflictError(conflict)

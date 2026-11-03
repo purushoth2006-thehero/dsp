@@ -21,7 +21,7 @@ A lesson-scheduling and attendance app for a driving school, built with React, V
 
 **Customers**
 - Sign in with their mobile number and the password the school gave them
-- Book, change and cancel their own lessons for **today or tomorrow only** (taken times are greyed out; other customers' names are never shown)
+- Book, change and cancel their own lessons for **today or tomorrow only, one lesson per day** (taken times are greyed out; other customers' names are never shown)
 - See upcoming and past lessons, attendance and progress (lessons attended out of 20)
 - At most 5 upcoming lessons at a time, and no more lessons than the package has (missed lessons can be replaced)
 - After the last lesson of the package (20 for Diamond, 10 for Gold) is marked present, the profile and its lessons are removed automatically (the admin is asked to confirm first)

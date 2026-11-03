@@ -49,6 +49,9 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
   }
   const isFree = (time) => !conflictFor(time)
   const time = isFree(form.time) ? form.time : (TIME_SLOTS.find(isFree) ?? form.time)
+  // A customer can have only one lesson a day (the admin has no such limit).
+  const hasLessonThatDay = !isAdmin && Boolean(form.date)
+    && data.appointments.some((a) => a.customerId === form.customerId && a.id !== editing?.id && a.date === form.date)
   const noSlots = Boolean(form.date) && !checking && !TIME_SLOTS.some(isFree)
 
   const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'the customer'
@@ -143,13 +146,14 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
         </select>
       </Field>
 
+      {hasLessonThatDay && <p className="error">You already have a lesson on this day. Only one lesson per day can be booked.</p>}
       {checking && <p className="muted">Checking free times…</p>}
       {closedDayName(form.date) && <p className="error">The school is closed on {closedDayName(form.date)}s. Please choose another day.</p>}
-      {noSlots && !closedDayName(form.date) && <p className="error">No free slots on this day at {form.place || 'this place'}. Try another day or place.</p>}
+      {noSlots && !hasLessonThatDay && !closedDayName(form.date) && <p className="error">No free slots on this day at {form.place || 'this place'}. Try another day or place.</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
       <div className="form-actions">
-        <button className="primary" type="submit" disabled={noSlots || checking || busy || !form.date || !form.place.trim()}>
+        <button className="primary" type="submit" disabled={hasLessonThatDay || noSlots || checking || busy || !form.date || !form.place.trim()}>
           {busy ? 'Saving…' : editing ? 'Save changes' : isAdmin ? 'Schedule lesson' : 'Book lesson'}
         </button>
         {editing && <button className="ghost" type="button" onClick={onDone}>Cancel edit</button>}
