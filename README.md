@@ -43,6 +43,7 @@ Each lesson is reminded once per kind; moving a lesson resets its reminders; a m
 
 ## Rules enforced by the server
 
+- Lessons are at 6:00 AM, 7:30 AM, 9:00 AM, 10:30 AM, 12:30 PM and 4:30 PM. The school is closed on Sundays and Wednesdays (`TIME_SLOTS` and `CLOSED_WEEKDAYS` in `src/rules.js`)
 - Times are always India time (Asia/Kolkata), whatever the visitor's device is set to
 - No lessons in the past, and no two lessons at the same branch, date and time
 - A customer cannot have two lessons at the same time. Simultaneous requests cannot double-book a slot

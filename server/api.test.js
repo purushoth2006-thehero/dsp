@@ -3,16 +3,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createHandler } from './handler.js'
 import { MemoryStore } from './store/memory.js'
 import { UpstashStore } from './store/upstash.js'
-import { MAX_UPCOMING_PER_CUSTOMER, PACKAGES, PLACES, TIME_SLOTS } from '../src/rules.js'
+import { MAX_UPCOMING_PER_CUSTOMER, PACKAGES, PLACES, TIME_SLOTS, closedDayName } from '../src/rules.js'
 
 const TOTAL_LESSONS = PACKAGES.diamond.lessons
 
-// Saturday 17 Oct 2026, 10:00 at the school
-const NOW = new Date(2026, 9, 17, 10, 0)
-const FUTURE = '2026-10-20'
-const FUTURE2 = '2026-10-22'
-const TODAY = '2026-10-17'
-const TOMORROW = '2026-10-18'
+// Monday 19 Oct 2026, 10:00 at the school
+const NOW = new Date(2026, 9, 19, 10, 0)
+const FUTURE = '2026-10-22'
+const FUTURE2 = '2026-10-23'
+const TODAY = '2026-10-19'
+const TOMORROW = '2026-10-20'
 
 // ---------- a tiny fake of Upstash's REST API, so the real UpstashStore code can be tested ----------
 
@@ -153,7 +153,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
   }
 
   const book = (admin, customerId, over = {}) =>
-    admin.call('POST', '/api/appointments', { customerId, date: FUTURE, time: '10:00', place: PLACES[0], ...over })
+    admin.call('POST', '/api/appointments', { customerId, date: FUTURE, time: '10:30', place: PLACES[0], ...over })
 
   // A browser signed in as this customer.
   async function customerBrowser(c, password = 'secret123') {
@@ -164,8 +164,17 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
   }
 
   // The i-th of many distinct slots (8 a day), so one customer can be given a whole course of lessons.
+  // The n-th open day from 12 Nov 2026 (skips the weekly leave days).
+  const openDay = (n) => {
+    const out = []
+    for (let d = 12; out.length <= n; d += 1) {
+      const date = `2026-11-${String(d).padStart(2, '0')}`
+      if (!closedDayName(date)) out.push(date)
+    }
+    return out[n]
+  }
   const slotNumber = (i) => ({
-    date: `2026-11-${String(5 + Math.floor(i / TIME_SLOTS.length)).padStart(2, '0')}`,
+    date: openDay(Math.floor(i / TIME_SLOTS.length)),
     time: TIME_SLOTS[i % TIME_SLOTS.length],
     place: PLACES[0],
   })
@@ -268,7 +277,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const a = await addCustomer(admin, { password: 'secret-a1' })
     const b = await addCustomer(admin, { password: 'secret-b1' })
     const lessonA = (await book(admin, a.id, { time: '09:00' })).body.appointment
-    await book(admin, b.id, { time: '11:00' })
+    await book(admin, b.id, { time: '12:30' })
 
     const customerA = await customerBrowser(a, 'secret-a1')
     const me = (await customerA.call('GET', '/api/session')).body
@@ -289,9 +298,10 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const res = await book(admin, c.id, { date: '2026-10-21' }) // a Wednesday
     expect(res.status).toBe(400)
     expect(res.body.error).toMatch(/closed on Wednesdays/)
-    const ok = await book(admin, c.id, { date: '2026-10-22' })
+    expect((await book(admin, c.id, { date: '2026-10-25' })).body.error).toMatch(/closed on Sundays/) // a Sunday
+    const ok = await book(admin, c.id, { date: '2026-10-23' })
     expect(ok.status).toBe(201)
-    expect((await admin.call('PUT', `/api/appointments/${ok.body.appointment.id}`, { date: '2026-10-21', time: '10:00', place: PLACES[0] })).status).toBe(400)
+    expect((await admin.call('PUT', `/api/appointments/${ok.body.appointment.id}`, { date: '2026-10-21', time: '10:30', place: PLACES[0] })).status).toBe(400)
   })
 
   it('signs the admin out when the browser closes, but keeps customers signed in for a week', async () => {
@@ -309,7 +319,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const admin = await adminBrowser()
     const a = await addCustomer(admin)
     const b = await addCustomer(admin)
-    const lessonB = (await book(admin, b.id, { date: TOMORROW, time: '10:00' })).body.appointment
+    const lessonB = (await book(admin, b.id, { date: TOMORROW, time: '10:30' })).body.appointment
     const customerA = await customerBrowser(a)
 
     // A customer always books for themselves, whatever customerId the request names.
@@ -318,14 +328,14 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect(booked.body.appointment.customerId).toBe(a.id)
     const id = booked.body.appointment.id
 
-    const moved = await customerA.call('PUT', `/api/appointments/${id}`, { date: TOMORROW, time: '14:00', place: PLACES[1] })
+    const moved = await customerA.call('PUT', `/api/appointments/${id}`, { date: TOMORROW, time: '07:30', place: PLACES[1] })
     expect(moved.status).toBe(200)
-    expect(moved.body.appointment).toMatchObject({ customerId: a.id, date: TOMORROW, time: '14:00', place: PLACES[1] })
+    expect(moved.body.appointment).toMatchObject({ customerId: a.id, date: TOMORROW, time: '07:30', place: PLACES[1] })
 
     // The same rules as for the admin: a slot someone else holds can't be taken...
-    expect((await book(customerA, a.id, { date: TOMORROW, time: '10:00' })).status).toBe(409)
+    expect((await book(customerA, a.id, { date: TOMORROW, time: '10:30' })).status).toBe(409)
     // ...and someone else's lesson can't be moved or cancelled (it looks like it doesn't exist).
-    expect((await customerA.call('PUT', `/api/appointments/${lessonB.id}`, { date: TOMORROW, time: '15:00', place: PLACES[1] })).status).toBe(404)
+    expect((await customerA.call('PUT', `/api/appointments/${lessonB.id}`, { date: TOMORROW, time: '06:00', place: PLACES[1] })).status).toBe(404)
     expect((await customerA.call('DELETE', `/api/appointments/${lessonB.id}`)).status).toBe(404)
 
     expect((await customerA.call('DELETE', `/api/appointments/${id}`)).status).toBe(200)
@@ -340,16 +350,16 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const customer = await customerBrowser(c)
     const first = await book(customer, c.id, { date: TOMORROW, time: '09:00' })
     expect(first.status).toBe(201)
-    const second = await book(customer, c.id, { date: TOMORROW, time: '11:00' })
+    const second = await book(customer, c.id, { date: TOMORROW, time: '12:30' })
     expect(second.status).toBe(409)
     expect(second.body.error).toMatch(/one lesson per day/)
-    expect((await book(customer, c.id, { date: TODAY, time: '11:00' })).status).toBe(201) // another day is fine
+    expect((await book(customer, c.id, { date: TODAY, time: '12:30' })).status).toBe(201) // another day is fine
     // Moving the lesson within its own day is fine.
-    expect((await customer.call('PUT', `/api/appointments/${first.body.appointment.id}`, { date: TOMORROW, time: '10:00', place: PLACES[0] })).status).toBe(200)
-    expect((await book(admin, c.id, { date: TOMORROW, time: '13:00' })).status).toBe(201)
+    expect((await customer.call('PUT', `/api/appointments/${first.body.appointment.id}`, { date: TOMORROW, time: '10:30', place: PLACES[0] })).status).toBe(200)
+    expect((await book(admin, c.id, { date: TOMORROW, time: '16:30' })).status).toBe(201)
     // Moving a lesson onto a day that already has another of theirs is refused.
     const other = await book(admin, c.id, { date: FUTURE, time: '09:00' })
-    expect((await customer.call('PUT', `/api/appointments/${other.body.appointment.id}`, { date: TOMORROW, time: '14:00', place: PLACES[0] })).status).toBe(409)
+    expect((await customer.call('PUT', `/api/appointments/${other.body.appointment.id}`, { date: TOMORROW, time: '07:30', place: PLACES[0] })).status).toBe(409)
   })
 
   it('lets a customer book only today and tomorrow, while the admin can book any day', async () => {
@@ -357,7 +367,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const c = await addCustomer(admin)
     const customer = await customerBrowser(c)
 
-    expect((await book(customer, c.id, { date: TODAY, time: '11:00' })).status).toBe(201) // later today
+    expect((await book(customer, c.id, { date: TODAY, time: '12:30' })).status).toBe(201) // later today
     const lesson = (await book(customer, c.id, { date: TOMORROW, time: '09:00' })).body.appointment
     const far = await book(customer, c.id, { date: FUTURE, time: '09:00' })
     expect(far.status).toBe(400)
@@ -368,7 +378,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await customer.call('PUT', `/api/appointments/${lesson.id}`, { date: FUTURE, time: '09:00', place: PLACES[0] })).status).toBe(400)
 
     expect((await book(admin, c.id, { date: FUTURE, time: '09:00' })).status).toBe(201)
-    expect((await admin.call('PUT', `/api/appointments/${lesson.id}`, { date: FUTURE, time: '10:00', place: PLACES[0] })).status).toBe(200)
+    expect((await admin.call('PUT', `/api/appointments/${lesson.id}`, { date: FUTURE, time: '10:30', place: PLACES[0] })).status).toBe(200)
   })
 
   it('does not let a customer change a lesson that has been marked', async () => {
@@ -378,7 +388,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const customer = await customerBrowser(c)
     await admin.call('PUT', `/api/appointments/${lesson.id}/attendance`, { attendance: 'present' })
 
-    expect((await customer.call('PUT', `/api/appointments/${lesson.id}`, { date: FUTURE2, time: '14:00', place: PLACES[1] })).status).toBe(409)
+    expect((await customer.call('PUT', `/api/appointments/${lesson.id}`, { date: FUTURE2, time: '07:30', place: PLACES[1] })).status).toBe(409)
     expect((await customer.call('DELETE', `/api/appointments/${lesson.id}`)).status).toBe(409)
   })
 
@@ -386,15 +396,15 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const admin = await adminBrowser()
     const a = await addCustomer(admin)
     const b = await addCustomer(admin)
-    await book(admin, b.id, { time: '10:00' })
-    const mine = (await book(admin, a.id, { time: '11:00' })).body.appointment
+    await book(admin, b.id, { time: '10:30' })
+    const mine = (await book(admin, a.id, { time: '12:30' })).body.appointment
     const customerA = await customerBrowser(a)
 
     const res = await customerA.call('GET', `/api/slots?date=${FUTURE}`)
     expect(res.status).toBe(200)
     expect(res.body.slots).toEqual([
-      { time: '10:00', place: PLACES[0], mine: false },
-      { time: '11:00', place: PLACES[0], mine: true, id: mine.id },
+      { time: '10:30', place: PLACES[0], mine: false },
+      { time: '12:30', place: PLACES[0], mine: true, id: mine.id },
     ])
     expect(JSON.stringify(res.body)).not.toContain(b.id)
 
@@ -483,9 +493,9 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect(booked.status).toBe(201)
     const id = booked.body.appointment.id
 
-    const moved = await admin.call('PUT', `/api/appointments/${id}`, { date: FUTURE2, time: '14:00', place: PLACES[1] })
+    const moved = await admin.call('PUT', `/api/appointments/${id}`, { date: FUTURE2, time: '07:30', place: PLACES[1] })
     expect(moved.status).toBe(200)
-    expect(moved.body.appointment).toMatchObject({ date: FUTURE2, time: '14:00', place: PLACES[1] })
+    expect(moved.body.appointment).toMatchObject({ date: FUTURE2, time: '07:30', place: PLACES[1] })
 
     // the old slot is free again
     const other = await addCustomer(admin)
@@ -494,7 +504,7 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await admin.call('PUT', `/api/appointments/${id}/attendance`, { attendance: 'bogus' })).status).toBe(400)
     expect((await admin.call('PUT', `/api/appointments/${id}/attendance`, { attendance: 'present' })).status).toBe(200)
 
-    expect((await admin.call('PUT', `/api/appointments/${id}`, { date: FUTURE, time: '11:00', place: PLACES[0] })).status).toBe(409)
+    expect((await admin.call('PUT', `/api/appointments/${id}`, { date: FUTURE, time: '12:30', place: PLACES[0] })).status).toBe(409)
     expect((await admin.call('DELETE', `/api/appointments/${id}`)).status).toBe(409)
 
     expect((await admin.call('PUT', `/api/appointments/${id}/attendance`, { attendance: null })).status).toBe(200)
@@ -513,9 +523,9 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await book(admin, a.id, { place: PLACES[1] })).status).toBe(409) // same customer, same time
     expect((await book(admin, b.id, { place: PLACES[1] })).status).toBe(201) // a different place is fine
 
-    expect((await book(admin, b.id, { date: '2026-10-17', time: '09:00' })).status).toBe(400) // already passed today
+    expect((await book(admin, b.id, { date: '2026-10-19', time: '09:00' })).status).toBe(400) // already passed today
     expect((await book(admin, b.id, { date: '2026-10-16' })).status).toBe(400)
-    expect((await book(admin, b.id, { date: '2026-10-17', time: '11:00' })).status).toBe(201) // later today is fine
+    expect((await book(admin, b.id, { date: '2026-10-19', time: '12:30' })).status).toBe(201) // later today is fine
     expect((await book(admin, b.id, { place: '' })).status).toBe(400)
     expect((await book(admin, b.id, { time: '12:00' })).status).toBe(400)
     expect((await book(admin, b.id, { date: '2026-02-31' })).status).toBe(400)
@@ -541,9 +551,9 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const clash = await book(admin, b.id, { place: '  tambaram   ground ' })
     expect(clash.status).toBe(409)
     expect((await book(admin, b.id, { place: 'Another Place' })).status).toBe(201)
-    expect((await book(admin, b.id, { place: '', time: '11:00' })).status).toBe(400)
-    expect((await book(admin, b.id, { place: 'x', time: '11:00' })).status).toBe(400)
-    expect((await book(admin, b.id, { place: 'y'.repeat(41), time: '11:00' })).status).toBe(400)
+    expect((await book(admin, b.id, { place: '', time: '12:30' })).status).toBe(400)
+    expect((await book(admin, b.id, { place: 'x', time: '12:30' })).status).toBe(400)
+    expect((await book(admin, b.id, { place: 'y'.repeat(41), time: '12:30' })).status).toBe(400)
   })
 
   it('treats customers saved with the old package names as Diamond and Gold', async () => {
@@ -570,20 +580,20 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const people = []
     for (let i = 0; i < 5; i += 1) people.push(await addCustomer(admin))
 
-    const results = await Promise.all(people.map((p) => book(admin, p.id, { date: FUTURE2, time: '15:00', place: PLACES[2] })))
+    const results = await Promise.all(people.map((p) => book(admin, p.id, { date: FUTURE2, time: '06:00', place: PLACES[2] })))
     const statuses = results.map((r) => r.status).sort()
     expect(statuses.filter((s) => s === 201)).toHaveLength(1)
     expect(statuses.filter((s) => s === 409)).toHaveLength(4)
 
     const stored = (await admin.call('GET', '/api/session')).body.appointments
-    expect(stored.filter((a) => a.date === FUTURE2 && a.time === '15:00')).toHaveLength(1)
+    expect(stored.filter((a) => a.date === FUTURE2 && a.time === '06:00')).toHaveLength(1)
   })
 
   it('stops the same customer being double-booked by simultaneous requests', async () => {
     const admin = await adminBrowser()
     const c = await addCustomer(admin)
     const results = await Promise.all(
-      [PLACES[0], PLACES[1], PLACES[2]].map((place) => book(admin, c.id, { place, time: '16:00' }))
+      [PLACES[0], PLACES[1], PLACES[2]].map((place) => book(admin, c.id, { place, time: '16:30' }))
     )
     expect(results.filter((r) => r.status === 201)).toHaveLength(1)
   })

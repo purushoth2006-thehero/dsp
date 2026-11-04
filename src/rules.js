@@ -16,7 +16,7 @@ export const packageOf = (customer) => PACKAGES[packageId(customer?.package)]
 export const lessonsFor = (customer) => packageOf(customer).lessons
 // A customer booking for themselves may hold at most this many upcoming lessons at once.
 export const MAX_UPCOMING_PER_CUSTOMER = 5
-export const TIME_SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+export const TIME_SLOTS = ['06:00', '07:30', '09:00', '10:30', '12:30', '16:30']
 // Suggested places. A lesson's place is typed by whoever books it, so any name is allowed.
 export const PLACES = ['Mcity_Petrol_Bunk', 'ZeroPoint', 'Potheri']
 export const cleanPlace = (v) => String(v ?? '').trim().replace(/\s+/g, ' ')
@@ -119,8 +119,8 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
 
 // ---------- appointment rules ----------
 
-// Days the school is closed for lessons (0 = Sunday ... 3 = Wednesday). Change this list to change the weekly leave.
-export const CLOSED_WEEKDAYS = [3]
+// Days the school is closed (Sunday and Wednesday) for lessons (0 = Sunday ... 3 = Wednesday). Change this list to change the weekly leave.
+export const CLOSED_WEEKDAYS = [0, 3]
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export function closedDayName(date) {

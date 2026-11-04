@@ -4,22 +4,22 @@ import {
   normalizePhone, toCsv, toLocalDate, validateCustomer,
 } from './rules.js'
 
-// Saturday 17 Oct 2026, 10:00 local time
-const NOW = new Date(2026, 9, 17, 10, 0)
+// Monday 19 Oct 2026, 10:00 local time
+const NOW = new Date(2026, 9, 19, 10, 0)
 
 describe('dates', () => {
   it('formats the local date, not UTC', () => {
-    expect(toLocalDate(new Date(2026, 9, 17, 0, 30))).toBe('2026-10-17')
-    expect(addDays(1, NOW)).toBe('2026-10-18')
-    expect(addDays(-17, NOW)).toBe('2026-09-30')
+    expect(toLocalDate(new Date(2026, 9, 19, 0, 30))).toBe('2026-10-19')
+    expect(addDays(1, NOW)).toBe('2026-10-20')
+    expect(addDays(-19, NOW)).toBe('2026-09-30')
   })
 
   it('knows which slots are in the past', () => {
     expect(isPast('2026-10-16', '17:00', NOW)).toBe(true)
-    expect(isPast('2026-10-17', '09:00', NOW)).toBe(true)
-    expect(isPast('2026-10-17', '10:00', NOW)).toBe(true)
-    expect(isPast('2026-10-17', '11:00', NOW)).toBe(false)
-    expect(isPast('2026-10-18', '09:00', NOW)).toBe(false)
+    expect(isPast('2026-10-19', '09:00', NOW)).toBe(true)
+    expect(isPast('2026-10-19', '10:00', NOW)).toBe(true)
+    expect(isPast('2026-10-19', '11:00', NOW)).toBe(false)
+    expect(isPast('2026-10-20', '09:00', NOW)).toBe(false)
   })
 
   it('formats times for display', () => {
@@ -80,9 +80,9 @@ describe('places, days and packages', () => {
   })
 
   it('lets customers book only today and tomorrow', () => {
-    expect(bookableDates(NOW)).toEqual(['2026-10-17', '2026-10-18'])
-    expect(isBookableByCustomer('2026-10-18', NOW)).toBe(true)
-    expect(isBookableByCustomer('2026-10-19', NOW)).toBe(false)
+    expect(bookableDates(NOW)).toEqual(['2026-10-19', '2026-10-20'])
+    expect(isBookableByCustomer('2026-10-20', NOW)).toBe(true)
+    expect(isBookableByCustomer('2026-10-21', NOW)).toBe(false)
     expect(isBookableByCustomer('2026-10-16', NOW)).toBe(false)
   })
 
@@ -96,15 +96,15 @@ describe('places, days and packages', () => {
 })
 
 describe('getSlotConflict', () => {
-  const appts = [{ id: 'a1', customerId: 'c1', date: '2026-10-18', time: '10:00', place: PLACES[0], attendance: null }]
-  const slot = { date: '2026-10-18', time: '10:00', place: PLACES[1] }
+  const appts = [{ id: 'a1', customerId: 'c1', date: '2026-10-20', time: '10:00', place: PLACES[0], attendance: null }]
+  const slot = { date: '2026-10-20', time: '10:00', place: PLACES[1] }
 
   it('is null for a free future slot', () => {
     expect(getSlotConflict({ ...slot, time: '11:00' }, appts, { customerId: 'c2', now: NOW })).toBeNull()
   })
 
   it('blocks past slots', () => {
-    expect(getSlotConflict({ ...slot, date: '2026-10-17', time: '09:00' }, appts, { customerId: 'c2', now: NOW }).code).toBe('past')
+    expect(getSlotConflict({ ...slot, date: '2026-10-19', time: '09:00' }, appts, { customerId: 'c2', now: NOW }).code).toBe('past')
   })
 
   it('blocks the same place and time for another customer', () => {
@@ -126,10 +126,10 @@ describe('computeStats', () => {
   const data = {
     customers: [{ id: 'c1' }, { id: 'c2' }],
     appointments: [
-      { id: 'a1', customerId: 'c1', date: '2026-10-17', time: '09:00', place: PLACES[0], attendance: 'present' },
-      { id: 'a2', customerId: 'c1', date: '2026-10-17', time: '11:00', place: PLACES[0], attendance: null },
+      { id: 'a1', customerId: 'c1', date: '2026-10-19', time: '09:00', place: PLACES[0], attendance: 'present' },
+      { id: 'a2', customerId: 'c1', date: '2026-10-19', time: '11:00', place: PLACES[0], attendance: null },
       { id: 'a3', customerId: 'c2', date: '2026-10-16', time: '10:00', place: PLACES[1], attendance: null },
-      { id: 'a4', customerId: 'c2', date: '2026-10-18', time: '10:00', place: PLACES[1], attendance: null },
+      { id: 'a4', customerId: 'c2', date: '2026-10-20', time: '10:00', place: PLACES[1], attendance: null },
       { id: 'a5', customerId: 'c2', date: '2026-10-15', time: '10:00', place: PLACES[1], attendance: 'absent' },
     ],
   }
@@ -149,8 +149,8 @@ describe('computeStats', () => {
     ])
     // Upcoming lessons day by day: the rest of today (11:00) and tomorrow.
     expect(s.byDay).toEqual([
-      { date: '2026-10-17', count: 1, byPlace: [{ place: PLACES[0], count: 1 }, { place: PLACES[1], count: 0 }] },
-      { date: '2026-10-18', count: 1, byPlace: [{ place: PLACES[0], count: 0 }, { place: PLACES[1], count: 1 }] },
+      { date: '2026-10-19', count: 1, byPlace: [{ place: PLACES[0], count: 1 }, { place: PLACES[1], count: 0 }] },
+      { date: '2026-10-20', count: 1, byPlace: [{ place: PLACES[0], count: 0 }, { place: PLACES[1], count: 1 }] },
     ])
   })
 

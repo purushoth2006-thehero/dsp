@@ -6,8 +6,8 @@ import { buildReminder } from './reminders.js'
 import { MemoryStore } from './store/memory.js'
 import { PLACES } from '../src/rules.js'
 
-// Saturday 17 Oct 2026, 10:00 at the school
-const NOW = new Date(2026, 9, 17, 10, 0)
+// Monday 19 Oct 2026, 10:00 at the school
+const NOW = new Date(2026, 9, 19, 10, 0)
 const SECRET = 'cron-secret-123456'
 
 function setup() {
@@ -34,8 +34,8 @@ function setup() {
 
 describe('lesson reminders', () => {
   it('words the message with the day, time and place', () => {
-    const msg = buildReminder('day-before', { date: '2026-10-18', time: '09:00', place: PLACES[1] }, { name: 'Priya Sharma' })
-    expect(msg.text).toBe(`Hello Priya, reminder from Sridhar Driving School: you have a driving class tomorrow (Sun, 18 Oct, 2026) at 9:00 AM at ${PLACES[1]}. Please arrive on time.`)
+    const msg = buildReminder('day-before', { date: '2026-10-20', time: '09:00', place: PLACES[1] }, { name: 'Priya Sharma' })
+    expect(msg.text).toBe(`Hello Priya, reminder from Sridhar Driving School: you have a driving class tomorrow (Tue, 20 Oct, 2026) at 9:00 AM at ${PLACES[1]}. Please arrive on time.`)
     expect(msg.variables).toMatchObject({ 1: 'Priya', 2: 'tomorrow', 4: '9:00 AM', 5: PLACES[1] })
   })
 
@@ -43,8 +43,8 @@ describe('lesson reminders', () => {
     const { call, sent, customer, lesson } = setup()
     const a = await customer(1)
     const b = await customer(2)
-    await lesson(a.id, '2026-10-18', '09:00')
-    await lesson(b.id, '2026-10-19', '09:00', { place: PLACES[1] }) // not tomorrow
+    await lesson(a.id, '2026-10-20', '09:00')
+    await lesson(b.id, '2026-10-22', '09:00', { place: PLACES[1] }) // not tomorrow
     const first = await call('day-before')
     expect(first.status).toBe(200)
     expect(first.body).toMatchObject({ configured: true, due: 1, sent: 1, failed: 0 })
@@ -58,7 +58,7 @@ describe('lesson reminders', () => {
   it('sends the same-day reminder only for lessons still to come', async () => {
     const { call, sent, customer, lesson } = setup()
     const a = await customer(1)
-    await lesson(a.id, '2026-10-17', '11:00')
+    await lesson(a.id, '2026-10-19', '12:30')
     const r = await call('same-day')
     expect(r.body).toMatchObject({ due: 1, sent: 1 })
     expect(sent[0].text).toContain('today')
@@ -69,9 +69,9 @@ describe('lesson reminders', () => {
   it('reminds again when a lesson is moved, and skips cancelled lessons', async () => {
     const { call, sent, customer, lesson, service } = setup()
     const a = await customer(1)
-    const l = await lesson(a.id, '2026-10-18', '09:00')
+    const l = await lesson(a.id, '2026-10-20', '09:00')
     await call('day-before')
-    await service.rescheduleAppointment(l.id, { date: '2026-10-18', time: '10:00', place: PLACES[0] })
+    await service.rescheduleAppointment(l.id, { date: '2026-10-20', time: '10:30', place: PLACES[0] })
     expect((await call('day-before')).body.sent).toBe(1)
     expect(sent).toHaveLength(2)
     await service.cancelAppointment(l.id)
@@ -93,7 +93,7 @@ describe('lesson reminders', () => {
       return JSON.parse(body)
     }
     const c = await service.addCustomer({ name: 'Asha', phone: '9876500001', password: 'secret123' })
-    await service.bookAppointment({ customerId: c.id, date: '2026-10-18', time: '09:00', place: PLACES[0] })
+    await service.bookAppointment({ customerId: c.id, date: '2026-10-20', time: '09:00', place: PLACES[0] })
     expect(await run()).toMatchObject({ due: 1, sent: 0, failed: 1, errors: ['sms: bad number'] })
     works = true
     expect(await run()).toMatchObject({ due: 1, sent: 1 })
