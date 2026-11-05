@@ -11,13 +11,9 @@ import Customers from './components/admin/Customers.jsx'
 import AddCustomer from './components/admin/AddCustomer.jsx'
 import Lessons from './components/admin/Lessons.jsx'
 import Attendance from './components/admin/Attendance.jsx'
+import SiteLayout from './components/site/SiteLayout.jsx'
+import { ContactPage, HomePage, OffersPage, ServicesPage } from './components/site/Pages.jsx'
 import { ROLES } from './rules.js'
-
-// "/" sends people to the right place for their role.
-function Home() {
-  const { session } = useApp()
-  return <Navigate to={homeFor(session)} replace />
-}
 
 // The login page is for signed-out visitors only.
 function GuestOnly({ children }) {
@@ -39,7 +35,12 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route element={<SiteLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/offers" element={<OffersPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+      </Route>
       <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
 
       <Route element={<RequireRole role={ROLES.CUSTOMER} />}>

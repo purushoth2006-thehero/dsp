@@ -261,3 +261,40 @@ tr.editing td { background: var(--editing); }
 .batch { margin-top: 18px; }
 .batch h3 { margin: 0 0 6px; font-size: 1.05rem; }
 @media print { .batch { break-inside: avoid; margin-top: 14px; } .batch h3 { color: #000; } }
+
+/* ---------- public website ---------- */
+.site { min-height: 100vh; display: flex; flex-direction: column; }
+.site-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 20px; background: var(--brand); color: #fff;
+}
+.site-brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
+.site-brand img { border-radius: 6px; background: #fff; object-fit: contain; }
+.site-top-actions { display: flex; align-items: center; gap: 10px; }
+.student-corner { margin: 0; padding: 9px 16px; text-decoration: none; display: inline-block; white-space: nowrap; }
+.site-body { flex: 1; display: grid; grid-template-columns: 210px 1fr; }
+.site-menu {
+  display: flex; flex-direction: column; gap: 4px; padding: 18px 12px;
+  background: var(--surface); border-right: 1px solid var(--line);
+}
+.site-menu a { padding: 11px 14px; border-radius: 8px; color: var(--text); text-decoration: none; font-weight: 600; }
+.site-menu a:hover { background: var(--none-bg); }
+.site-menu a.active { background: var(--tab-active); color: #fff; }
+.site-content { padding: 28px clamp(16px, 4vw, 44px); max-width: 980px; width: 100%; }
+.site-content h1 { margin-top: 0; }
+.hero { padding: 34px 0 22px; }
+.hero h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 10px; }
+.hero p { font-size: 1.05rem; max-width: 560px; color: var(--muted); }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.hero-actions .primary, .hero-actions .ghost { margin: 0; text-decoration: none; display: inline-block; padding: 11px 18px; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.info-grid .card h2 { margin-top: 0; font-size: 1.1rem; }
+.info-grid ul { margin: 0; padding-left: 18px; }
+.contact p { font-size: 1.1rem; }
+.back-home { margin: 0 0 8px; font-size: 14px; }
+@media (max-width: 720px) {
+  .site-body { grid-template-columns: 1fr; }
+  .site-menu { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
+  .site-menu a { white-space: nowrap; }
+  .site-brand span { font-size: 1rem; }
+}

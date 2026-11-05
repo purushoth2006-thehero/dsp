@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../state/appContext.js'
 import { Field, PasswordInput } from '../ui/Field.jsx'
+import { Link } from 'react-router-dom'
 import ThemeToggle from '../ui/ThemeToggle.jsx'
 import { BRAND, ROLES } from '../rules.js'
 
@@ -35,6 +36,7 @@ export default function Login() {
     <main className="login-wrap">
       <ThemeToggle className="ghost" />
       <div className="login-card">
+        <p className="back-home"><Link to="/">← Back to home</Link></p>
         <h1><span aria-hidden="true">🚗</span> {BRAND}</h1>
 
         {serverError && <p className="banner" role="alert">{serverError}</p>}

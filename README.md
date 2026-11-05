@@ -100,7 +100,7 @@ src/state/           app state: loads server data, keeps it fresh
 src/components/      Login, CustomerPortal, admin/* pages
 ```
 
-Routes: `/login`, `/customer`, `/admin`, `/admin/customers`, `/admin/add`, `/admin/lessons`, `/admin/attendance`.
+Routes: `/` (public home), `/services`, `/offers`, `/contact`, `/login` (Student Corner), `/customer`, `/admin`, `/admin/customers`, `/admin/add`, `/admin/lessons`, `/admin/attendance`.
 `vercel.json` sends every non-API path to `index.html` so these URLs work when refreshed.
 
 ## Roadmap
