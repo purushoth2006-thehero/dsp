@@ -49,7 +49,7 @@ describe('phone numbers', () => {
 
 describe('validateCustomer', () => {
   const customers = [{ id: 'c1', name: 'Alice', phone: '9876543210', password: 'secret1' }]
-  const good = { name: 'Ravi Kumar', phone: '9123456780', password: 'abcdef' }
+  const good = { name: 'Ravi Kumar', phone: '9123456780', password: 'abcdef12' }
 
   it('accepts a valid new customer', () => {
     expect(validateCustomer(good, customers)).toBeNull()

@@ -9,6 +9,7 @@ const COOKIE = 'dsp_session'
 const ADMIN_TTL = 12 * 60 * 60 // seconds
 const CUSTOMER_TTL = 7 * 24 * 60 * 60
 const MAX_LOGIN_ATTEMPTS = 10
+const MAX_ACCOUNT_ATTEMPTS = 20 // per account, from anywhere, so a botnet can't guess one password forever
 const LOGIN_WINDOW = 15 * 60
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -21,12 +22,15 @@ function send(res, status, body, headers = {}) {
   res.end(JSON.stringify(body))
 }
 
+// A request body must be a JSON object; null, arrays and plain values become an empty object.
+const asObject = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
+
 async function readJson(req) {
   // On Vercel the body may already be parsed into req.body.
   if (req.body !== undefined && req.body !== null) {
-    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body
+    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return asObject(req.body)
     try {
-      return JSON.parse(Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body))
+      return asObject(JSON.parse(Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body)))
     } catch {
       throw new HttpError(400, 'Invalid request.')
     }
@@ -40,7 +44,7 @@ async function readJson(req) {
   }
   if (chunks.length === 0) return {}
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    return asObject(JSON.parse(Buffer.concat(chunks).toString('utf8')))
   } catch {
     throw new HttpError(400, 'Invalid request.')
   }
@@ -105,17 +109,21 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
     const body = await readJson(req)
 
     const key = `rl:login:${clientIp(req)}`
-    if ((await store.incr(key, LOGIN_WINDOW)) > MAX_LOGIN_ATTEMPTS) {
-      throw new HttpError(429, 'Too many sign-in attempts. Please wait 15 minutes and try again.')
-    }
+    const account = body.role === 'admin' ? `admin:${String(body.username ?? '').slice(0, 60).toLowerCase()}` : `student:${String(body.identifier ?? '').replace(/\D/g, '').slice(-10)}`
+    const accountKey = `rl:acct:${account}`
+    const tooMany = new HttpError(429, 'Too many sign-in attempts. Please wait 15 minutes and try again.')
+    if ((await store.incr(key, LOGIN_WINDOW)) > MAX_LOGIN_ATTEMPTS) throw tooMany
+    if ((await store.incr(accountKey, LOGIN_WINDOW)) > MAX_ACCOUNT_ATTEMPTS) throw tooMany
 
     const nowSec = Math.floor(Date.now() / 1000)
     let payload
     let maxAge
     if (body.role === 'admin') {
-      const userOk = safeEqual(body.username ?? '', cfg.adminUser)
-      const passOk = safeEqual(body.password ?? '', cfg.adminPass)
-      if (!(userOk && passOk)) throw new HttpError(401, 'Invalid admin credentials.')
+      // Only real strings count: an array like ["secret"] would otherwise turn into the string "secret".
+      const typed = typeof body.username === 'string' && typeof body.password === 'string'
+      const userOk = safeEqual(typed ? body.username : '', cfg.adminUser)
+      const passOk = safeEqual(typed ? body.password : '', cfg.adminPass)
+      if (!(typed && userOk && passOk)) throw new HttpError(401, 'Invalid admin credentials.')
       maxAge = ADMIN_TTL
       payload = { r: 'admin', ph: fingerprint(cfg.adminPass), exp: nowSec + maxAge }
     } else if (body.role === 'customer') {
@@ -128,6 +136,7 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
     }
 
     await store.del(key)
+    await store.del(accountKey)
     // The admin cookie has no Max-Age, so the browser deletes it when it is closed. (The token also expires after 12 hours.)
     const cookie = buildCookie(COOKIE, signToken(payload, cfg.secret), {
       maxAge: body.role === 'admin' ? undefined : maxAge, secure: secureCookie(req),

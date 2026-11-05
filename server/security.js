@@ -11,7 +11,10 @@ export async function hashPassword(password) {
   return `scrypt$${salt.toString('hex')}$${key.toString('hex')}`
 }
 
+export const MAX_PASSWORD = 128
+
 export async function verifyPassword(password, stored) {
+  if (String(password).length > MAX_PASSWORD) return false // never hash a huge input
   const [alg, saltHex, keyHex] = String(stored ?? '').split('$')
   if (alg !== 'scrypt' || !saltHex || !keyHex) return false
   const expected = Buffer.from(keyHex, 'hex')
@@ -62,7 +65,12 @@ export function parseCookies(header = '') {
   for (const part of String(header).split(';')) {
     const i = part.indexOf('=')
     if (i < 0) continue
-    out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim())
+    const value = part.slice(i + 1).trim()
+    try {
+      out[part.slice(0, i).trim()] = decodeURIComponent(value)
+    } catch {
+      out[part.slice(0, i).trim()] = '' // a malformed cookie is ignored instead of breaking the request
+    }
   }
   return out
 }

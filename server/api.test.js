@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import http from 'node:http'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createHandler } from './handler.js'
@@ -131,6 +132,22 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
   })
 
   const browser = () => newBrowser(api.base)
+
+  // A raw request with an exact Cookie header (for forged or broken cookies).
+  async function fetchWithCookie(cookie, path, method = 'GET') {
+    const res = await fetch(api.base + path, { method, headers: { cookie, 'x-dsp': '1', 'content-type': 'application/json' }, body: method === 'GET' ? undefined : '{}' })
+    let body = null
+    try { body = await res.json() } catch { /* empty */ }
+    return { status: res.status, body }
+  }
+
+  // A sign-in that looks like it comes from the given address.
+  async function backendLogin(ip, body) {
+    const res = await fetch(`${api.base}/api/login`, {
+      method: 'POST', headers: { 'x-dsp': '1', 'content-type': 'application/json', 'x-forwarded-for': ip }, body: JSON.stringify(body),
+    })
+    return { status: res.status }
+  }
 
   async function adminBrowser() {
     const b = browser()
@@ -313,6 +330,84 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const c = await addCustomer(await adminBrowser())
     const customer = await customerBrowser(c)
     expect(customer.lastSetCookie).toMatch(/Max-Age=604800/)
+  })
+
+  it('shrugs off injection payloads and malformed requests at login', async () => {
+    const admin = await adminBrowser()
+    await addCustomer(admin, { phone: '9876543210' })
+    const attempts = [
+      { role: 'customer', identifier: "' OR '1'='1' --", password: "' OR '1'='1" },
+      { role: 'customer', identifier: '9876543210; DROP TABLE customers', password: 'x' },
+      { role: 'customer', identifier: { $ne: '' }, password: { $ne: '' } },
+      { role: 'customer', identifier: ['9876543210'], password: ['secret123'] },
+      { role: 'customer', identifier: '9876543210', password: { toString: 'x' } },
+      { role: 'admin', username: { $gt: '' }, password: { $gt: '' } },
+      { role: 'admin', username: 'admin', password: ["admin123"] },
+      { role: 'admin', username: "admin' --", password: 'x' },
+      { role: ['admin'], username: 'admin', password: 'admin123' },
+      { role: '__proto__', identifier: 'x', password: 'y' },
+      { role: 'customer', identifier: '9876543210', password: 'secret123'.repeat(50) }, // oversized password
+    ]
+    for (const [i, body] of attempts.entries()) {
+      const res = await backendLogin(`10.1.0.${i}`, body) // each from its own address, so only the payload is tested
+      expect([400, 401], JSON.stringify(body).slice(0, 80)).toContain(res.status)
+    }
+    // Bodies that are not objects never crash the server.
+    for (const raw of [null, [], 'text', 5]) {
+      const res = await browser().call('POST', '/api/login', raw)
+      expect(res.status).toBe(400)
+    }
+  })
+
+  it('rejects forged, tampered and malformed session cookies', async () => {
+    const admin = await adminBrowser()
+    const c = await addCustomer(admin)
+    const forge = (payload, secret) => {
+      const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
+      return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`
+    }
+    const exp = Math.floor(Date.now() / 1000) + 3600
+    const cookies = [
+      forge({ r: 'admin', ph: 'x', exp }, 'some-other-secret'), // signed with the wrong secret
+      `${Buffer.from(JSON.stringify({ r: 'admin', exp })).toString('base64url')}.`, // no signature
+      `${Buffer.from(JSON.stringify({ alg: 'none', r: 'admin', exp })).toString('base64url')}.AAAA`,
+      forge({ r: 'customer', id: c.id, ph: 'wrong', exp }, 'dev-only-secret-not-for-production'), // right secret, wrong password fingerprint
+      '%E0%A4%A', // malformed percent-encoding
+      'a.b.c.d',
+      '',
+    ]
+    for (const value of cookies) {
+      const res = await fetchWithCookie(`dsp_session=${value}`, '/api/session')
+      expect(res.status, value).toBe(200)
+      expect(res.body.session, value).toBeNull()
+      expect((await fetchWithCookie(`dsp_session=${value}`, '/api/customers', 'POST')).status, value).toBe(401)
+    }
+  })
+
+  it('locks guessing at one account even when the attempts come from many addresses', async () => {
+    const admin = await adminBrowser()
+    await addCustomer(admin, { phone: '9876543210' })
+    let last = 0
+    for (let i = 0; i < 22; i += 1) {
+      last = (await backendLogin(`10.0.0.${i}`, { role: 'customer', identifier: '9876543210', password: `wrong-guess-${i}` })).status
+    }
+    expect(last).toBe(429)
+    // Even the right password is refused while the account is locked.
+    expect((await backendLogin('10.9.9.9', { role: 'customer', identifier: '9876543210', password: 'secret123' })).status).toBe(429)
+    // Other accounts are not affected.
+    expect((await backendLogin('10.9.9.9', { role: 'customer', identifier: '9111111111', password: 'x' })).status).toBe(401)
+  })
+
+  it('does not trust names or passwords of absurd length', async () => {
+    const admin = await adminBrowser()
+    const base = { name: 'Ravi', phone: '9876543299', password: 'secret123' }
+    expect((await admin.call('POST', '/api/customers', { ...base, name: 'R'.repeat(81) })).status).toBe(400)
+    expect((await admin.call('POST', '/api/customers', { ...base, password: 'p'.repeat(129) })).status).toBe(400)
+    expect((await admin.call('POST', '/api/customers', { ...base, password: 'short' })).status).toBe(400)
+    // Script in a name is stored as plain text and returned as JSON, never as markup.
+    const created = await admin.call('POST', '/api/customers', { ...base, name: '<img src=x onerror=alert(1)>' })
+    expect(created.status).toBe(201)
+    expect(created.body.customer.name).toBe('<img src=x onerror=alert(1)>')
   })
 
   it('lets a customer book, move and cancel their own lessons', async () => {

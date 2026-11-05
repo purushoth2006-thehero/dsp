@@ -34,7 +34,7 @@ export function placeList(appointments = [], base = PLACES) {
 }
 export const ATTENDANCE = { PRESENT: 'present', ABSENT: 'absent' }
 export const ROLES = { ADMIN: 'admin', CUSTOMER: 'customer' }
-export const MIN_PASSWORD = 6
+export const MIN_PASSWORD = 8
 
 // ---------- dates and times (wall-clock time at the school, never UTC) ----------
 
@@ -102,6 +102,7 @@ export const isValidPhone = (v) => /^[6-9]\d{9}$/.test(normalizePhone(v))
 // Returns an error message, or null when the form is fine.
 export function validateCustomer(form, customers, { ignoreId = null, requirePassword = true } = {}) {
   if (String(form.name ?? '').trim().length < 2) return 'Please enter the full name.'
+  if (String(form.name ?? '').trim().length > 80) return 'The name is too long (80 characters at most).'
   if (!isValidPhone(form.phone)) return 'Enter a valid 10-digit mobile number, e.g. 9876543210.'
   if (form.package !== undefined && !PACKAGES[form.package]) return 'Please choose a package.'
 
@@ -109,6 +110,8 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
   if ((requirePassword || password) && password.length < MIN_PASSWORD) {
     return `Password must be at least ${MIN_PASSWORD} characters.`
   }
+
+  if (password.length > 128) return 'Password is too long (128 characters at most).'
 
   const others = customers.filter((c) => c.id !== ignoreId)
   if (others.some((c) => normalizePhone(c.phone) === normalizePhone(form.phone))) {
