@@ -142,7 +142,7 @@ export default function Attendance() {
                 <td data-label="Place">{a.place}</td>
                 <td data-label="Student">{a.customer ? a.customer.name : <i>removed</i>}</td>
                 <td className="print-only">{a.customer?.phone ?? ''}</td>
-                <td className="print-only">{a.attendance ?? 'not marked'}</td>
+                <td className="print-only attendance-blank"></td>
                 <td className="actions no-print">
                   <button
                     type="button"

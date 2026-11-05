@@ -298,3 +298,4 @@ tr.editing td { background: var(--editing); }
   .site-menu a { white-space: nowrap; }
   .site-brand span { font-size: 1rem; }
 }
+@media print { td.attendance-blank { height: 28px; min-width: 90px; } }
