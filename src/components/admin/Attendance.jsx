@@ -76,7 +76,7 @@ export default function Attendance() {
 
   return (
     <section className="card">
-      <h2 className={filterPlace ? 'print-only' : 'print-never'}>{BRAND}: attendance{filterDate ? `, ${formatDate(filterDate)}` : ''}{filterPlace ? `, ${filterPlace}` : ''}</h2>
+      <h2 className="print-only">{BRAND}: attendance{filterDate ? `, ${formatDate(filterDate)}` : ''}{filterPlace ? `, ${filterPlace}` : ''}</h2>
       <div className="toolbar">
         <h2>Attendance ({rows.length})</h2>
         <Field label="Date">
@@ -96,7 +96,7 @@ export default function Attendance() {
           Export CSV
         </button>
         <button type="button" className="ghost" onClick={() => window.print()} disabled={rows.length === 0}>
-          Print{filterPlace ? '' : ' (each place on its own page)'}
+          Print
         </button>
       </div>
 
@@ -109,7 +109,7 @@ export default function Attendance() {
       )}
 
       {rows.length > 0 && (
-        <table className={`stack ${filterPlace ? '' : 'no-print'}`}>
+        <table className="stack">
           <thead>
             <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
           </thead>
@@ -140,36 +140,6 @@ export default function Attendance() {
             ))}
           </tbody>
         </table>
-      )}
-      {!filterPlace && (
-        <div className="print-only print-places">
-          {places.map((place) => {
-            const list = rows.filter((a) => placeKey(a.place) === placeKey(place))
-            return (
-              <section key={place} className="print-page">
-                <h2>{BRAND}: {place}{filterDate ? `, ${formatDate(filterDate)}` : ''}</h2>
-                {list.length === 0 ? <p>No lessons.</p> : (
-                  <table className="stack">
-                    <thead>
-                      <tr><th>Date</th><th>Time</th><th>Customer</th><th>Mobile</th><th>Attendance</th></tr>
-                    </thead>
-                    <tbody>
-                      {list.map((a) => (
-                        <tr key={a.id}>
-                          <td>{formatDate(a.date)}</td>
-                          <td>{formatTime(a.time)}</td>
-                          <td>{a.customer ? a.customer.name : 'removed'}</td>
-                          <td>{a.customer?.phone ?? ''}</td>
-                          <td>{a.attendance ?? 'not marked'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </section>
-            )
-          })}
-        </div>
       )}
       <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their last lesson (20 for Diamond, 10 for Gold) is marked present.</p>
       {dialog}
