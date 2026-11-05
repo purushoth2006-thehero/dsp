@@ -6,7 +6,7 @@ import SortBar from '../../ui/SortBar.jsx'
 import useConfirm from '../../ui/useConfirm.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, BRAND, placeKey, sortRows, placeList, lessonsFor, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
+  ATTENDANCE, BRAND, groupByBatch, placeKey, sortRows, placeList, lessonsFor, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
 
 const SORTS = [
@@ -127,13 +127,15 @@ export default function Attendance() {
         </p>
       )}
 
-      {rows.length > 0 && (
+      {groupByBatch(rows).map((batch) => (
+        <section key={batch.time} className="batch">
+          <h3>{formatTime(batch.time)} batch <span className="muted">· {batch.rows.length} lesson{batch.rows.length === 1 ? '' : 's'}</span></h3>
         <table className="stack">
           <thead>
             <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
           </thead>
           <tbody>
-            {rows.map((a) => (
+            {batch.rows.map((a) => (
               <tr key={a.id}>
                 <td data-label="Date">{formatDate(a.date)}</td>
                 <td data-label="Time">{formatTime(a.time)}</td>
@@ -159,7 +161,8 @@ export default function Attendance() {
             ))}
           </tbody>
         </table>
-      )}
+        </section>
+      ))}
       <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their last lesson (20 for Diamond, 10 for Gold) is marked present.</p>
       {dialog}
     </section>

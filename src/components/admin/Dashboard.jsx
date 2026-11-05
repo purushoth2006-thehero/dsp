@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../../state/appContext.js'
 import useNow from '../../ui/useNow.js'
-import { computeStats, formatDate, formatTime, toLocalDate } from '../../rules.js'
+import { computeStats, groupByBatch, formatDate, formatTime, toLocalDate } from '../../rules.js'
 
 function Stat({ label, value, sub, warn }) {
   return (
@@ -60,13 +60,15 @@ export default function Dashboard() {
         <section className="card">
           <h2>Today's lessons <span className="muted">· {formatDate(toLocalDate(now))}</span></h2>
           {s.todayList.length === 0 && <p className="empty">No lessons scheduled for today.</p>}
-          {s.todayList.length > 0 && (
+          {groupByBatch(s.todayList).map((batch) => (
+            <section key={batch.time} className="batch">
+              <h3>{formatTime(batch.time)} batch <span className="muted">· {batch.rows.length}</span></h3>
             <table className="stack">
               <thead>
                 <tr><th>Time</th><th>Place</th><th>Customer</th><th>Attendance</th></tr>
               </thead>
               <tbody>
-                {s.todayList.map((a) => {
+                {batch.rows.map((a) => {
                   const c = data.customers.find((x) => x.id === a.customerId)
                   return (
                     <tr key={a.id}>
@@ -83,7 +85,8 @@ export default function Dashboard() {
                 })}
               </tbody>
             </table>
-          )}
+            </section>
+          ))}
           {s.unmarked > 0 && (
             <p className="muted">
               {s.unmarked} past lesson{s.unmarked === 1 ? '' : 's'} still need attendance. <Link to="/admin/attendance">Mark attendance</Link>

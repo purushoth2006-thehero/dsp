@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PACKAGES, PLACES, addDays, bookableDates, isBookableByCustomer, isValidPlace, packageOf, placeKey, placeList, sortRows, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
+  PACKAGES, PLACES, addDays, bookableDates, isBookableByCustomer, isValidPlace, packageOf, groupByBatch, placeKey, placeList, sortRows, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
   normalizePhone, toCsv, toLocalDate, validateCustomer,
 } from './rules.js'
 
@@ -111,6 +111,17 @@ describe('sortRows', () => {
     const copy = [...rows]
     sortRows(rows, keys, 'n')
     expect(rows).toEqual(copy)
+  })
+})
+
+describe('groupByBatch', () => {
+  it('splits lessons into time batches in time order and leaves empty batches out', () => {
+    const rows = [
+      { id: 1, time: '09:00' }, { id: 2, time: '06:00' }, { id: 3, time: '09:00' }, { id: 4, time: '16:30' },
+    ]
+    const groups = groupByBatch(rows)
+    expect(groups.map((g) => g.time)).toEqual(['06:00', '09:00', '16:30'])
+    expect(groups[1].rows.map((r) => r.id)).toEqual([1, 3]) // keeps the incoming order
   })
 })
 

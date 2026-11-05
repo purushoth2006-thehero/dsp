@@ -7,7 +7,7 @@ import useNow from '../../ui/useNow.js'
 import { Field } from '../../ui/Field.jsx'
 import LessonForm from '../LessonForm.jsx'
 import SortBar from '../../ui/SortBar.jsx'
-import { BRAND, sortRows, formatDate, formatTime, isPast } from '../../rules.js'
+import { BRAND, groupByBatch, sortRows, formatDate, formatTime, isPast } from '../../rules.js'
 
 const SORTS = [
   { key: 'when', label: 'Date and time' },
@@ -83,13 +83,15 @@ export default function Lessons() {
         </div>
 
         {upcoming.length === 0 && <p className="empty">{query ? 'No lessons match your search.' : 'No upcoming lessons. Schedule one using the form.'}</p>}
-        {upcoming.length > 0 && (
+        {groupByBatch(upcoming).map((batch) => (
+          <section key={batch.time} className="batch">
+            <h3>{formatTime(batch.time)} batch <span className="muted">· {batch.rows.length} lesson{batch.rows.length === 1 ? '' : 's'}</span></h3>
           <table className="stack">
             <thead>
               <tr><th className="print-only">No.</th><th>Customer</th><th className="print-only">Mobile</th><th>Date</th><th>Time</th><th>Place</th><th className="no-print"><span className="visually-hidden">Actions</span></th></tr>
             </thead>
             <tbody>
-              {upcoming.map((a, i) => (
+              {batch.rows.map((a, i) => (
                 <tr key={a.id} className={a.id === editing?.id ? 'editing' : ''}>
                   <td className="print-only">{i + 1}</td>
                   <td data-label="Customer">{nameOf(a.customerId)}</td>
@@ -105,7 +107,8 @@ export default function Lessons() {
               ))}
             </tbody>
           </table>
-        )}
+          </section>
+        ))}
       </section>
       {dialog}
     </div>

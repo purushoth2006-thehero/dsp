@@ -215,3 +215,14 @@ export function sortRows(rows, keys, key, dir = 'asc') {
     : String(x ?? '').localeCompare(String(y ?? ''), undefined, { numeric: true, sensitivity: 'base' }))
   return [...rows].sort((a, b) => sign * cmp(get(a), get(b)) || (a.date ? byDateTime(a, b) : 0))
 }
+
+// ---------- batches ----------
+
+// Splits lessons into batches by start time (6:00 AM batch, 7:30 AM batch, ...), in time order.
+// Each row keeps its place in the order it came in, so a chosen sort still applies inside every batch.
+export function groupByBatch(rows) {
+  const times = [...new Set([...TIME_SLOTS, ...rows.map((r) => r.time)])].sort()
+  return times
+    .map((time) => ({ time, rows: rows.filter((r) => r.time === time) }))
+    .filter((g) => g.rows.length > 0)
+}
