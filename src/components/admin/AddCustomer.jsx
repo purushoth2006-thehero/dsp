@@ -14,8 +14,8 @@ export default function AddCustomer() {
 
   return (
     <section className="card narrow">
-      <h2>Add customer</h2>
-      <CustomerForm submitLabel="Add customer" onSubmit={onSubmit} resetOnSuccess />
+      <h2>Add student</h2>
+      <CustomerForm submitLabel="Add student" onSubmit={onSubmit} resetOnSuccess />
     </section>
   )
 }

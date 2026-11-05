@@ -22,7 +22,7 @@ export default function Dashboard() {
   return (
     <>
       <div className="stats">
-        <Stat label="Customers" value={s.customers} />
+        <Stat label="Students" value={s.customers} />
         <Stat label="Lessons today" value={s.today} />
         <Stat label="Upcoming lessons" value={s.upcoming} />
         <Stat
@@ -65,7 +65,7 @@ export default function Dashboard() {
               <h3>{formatTime(batch.time)} batch <span className="muted">· {batch.rows.length}</span></h3>
             <table className="stack">
               <thead>
-                <tr><th>Time</th><th>Place</th><th>Customer</th><th>Attendance</th></tr>
+                <tr><th>Time</th><th>Place</th><th>Student</th><th>Attendance</th></tr>
               </thead>
               <tbody>
                 {batch.rows.map((a) => {
@@ -74,7 +74,7 @@ export default function Dashboard() {
                     <tr key={a.id}>
                       <td data-label="Time">{formatTime(a.time)}</td>
                       <td data-label="Place">{a.place}</td>
-                      <td data-label="Customer">{c ? c.name : <i>removed</i>}</td>
+                      <td data-label="Student">{c ? c.name : <i>removed</i>}</td>
                       <td data-label="Attendance">
                         {a.attendance
                           ? <span className={`badge ${a.attendance}`}>{a.attendance}</span>

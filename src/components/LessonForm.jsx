@@ -7,7 +7,7 @@ import { fetchSlots } from '../api.js'
 import { TIME_SLOTS, addDays, closedDayName, formatDate, formatTime, getSlotConflict, placeList, toLocalDate } from '../rules.js'
 
 const SLOT_NOTE = { closed: ' (closed)', past: ' (passed)', booked: ' (booked)', mine: ' (you already have a lesson)' }
-const ADMIN_NOTE = { ...SLOT_NOTE, mine: ' (customer has a lesson)' }
+const ADMIN_NOTE = { ...SLOT_NOTE, mine: ' (student has a lesson)' }
 
 // Book a new lesson, or move `editing`. The admin picks the customer; a customer books for themselves.
 // Give it a `key` that changes with `editing` so the fields reset.
@@ -54,7 +54,7 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
     && data.appointments.some((a) => a.customerId === form.customerId && a.id !== editing?.id && a.date === form.date)
   const noSlots = Boolean(form.date) && !checking && !TIME_SLOTS.some(isFree)
 
-  const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'the customer'
+  const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'the student'
 
   const today = toLocalDate(now)
   const days = [
@@ -67,7 +67,7 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
     e.preventDefault()
     setError('')
     if (!form.customerId) {
-      setError('Please choose a customer.')
+      setError('Please choose a student.')
       return
     }
     const slot = { date: form.date, time, place: form.place.trim() }
@@ -92,9 +92,9 @@ export default function LessonForm({ customers, customerId: fixedCustomerId, edi
   return (
     <form onSubmit={submit} className="form">
       {isAdmin && (
-        <Field label="Customer">
+        <Field label="Student">
           <select value={form.customerId} onChange={set('customerId')} disabled={Boolean(editing)} required>
-            <option value="">Choose a customer…</option>
+            <option value="">Choose a student…</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>

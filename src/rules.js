@@ -112,7 +112,7 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
 
   const others = customers.filter((c) => c.id !== ignoreId)
   if (others.some((c) => normalizePhone(c.phone) === normalizePhone(form.phone))) {
-    return 'A customer with that mobile number already exists.'
+    return 'A student with that mobile number already exists.'
   }
   return null
 }

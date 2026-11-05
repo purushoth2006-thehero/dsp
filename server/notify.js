@@ -1,4 +1,4 @@
-// Sends lesson reminders to customers by WhatsApp and SMS, using Twilio's REST API (no extra packages).
+// Sends lesson reminders to students by WhatsApp and SMS, using Twilio's REST API (no extra packages).
 //
 // Environment variables (all optional; without them reminders are simply not sent):
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN

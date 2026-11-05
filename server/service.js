@@ -151,13 +151,13 @@ export function createService(store, { now = () => nowInZone() } = {}) {
 
     async updateCustomer(id, form) {
       const existing = await store.hget(CUSTOMERS, id)
-      if (!existing) throw new HttpError(404, 'Customer not found.')
+      if (!existing) throw new HttpError(404, 'Student not found.')
       const f = cleanCustomerForm(form)
       const error = validateCustomer(f, await customers(), { ignoreId: id, requirePassword: false })
       if (error) throw new HttpError(400, error)
       const packageChanged = f.package !== packageId(existing.package)
       if (packageChanged && (await appointments()).some((a) => a.customerId === id)) {
-        throw new HttpError(409, 'The package can only be changed while the customer has no lessons booked.')
+        throw new HttpError(409, 'The package can only be changed while the student has no lessons booked.')
       }
       const next = {
         ...existing,
@@ -171,7 +171,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
     },
 
     async removeCustomer(id) {
-      if (!(await store.hget(CUSTOMERS, id))) throw new HttpError(404, 'Customer not found.')
+      if (!(await store.hget(CUSTOMERS, id))) throw new HttpError(404, 'Student not found.')
       await deleteCustomerAndLessons(id)
     },
 
@@ -213,7 +213,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
     async bookAppointment(input, actor = { role: 'admin' }) {
       const customerId = actor.role === 'customer' ? actor.id : str(input?.customerId)
       const customer = await store.hget(CUSTOMERS, customerId)
-      if (!customer) throw new HttpError(404, 'Customer not found.')
+      if (!customer) throw new HttpError(404, 'Student not found.')
       const slot = parseSlot(input)
       assertCustomerWindow(slot.date, actor)
 
@@ -248,7 +248,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
           await store.hdel(APPOINTMENTS, appt.id)
           throw new HttpError(409, key.startsWith('lock:slot')
             ? `${appt.place} was just booked at that time. Please pick another slot.`
-            : 'This customer already has a lesson at that time.')
+            : 'This student already has a lesson at that time.')
         }
         claimed.push(key)
       }

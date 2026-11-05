@@ -12,7 +12,7 @@ import {
 const SORTS = [
   { key: 'when', label: 'Date and time' },
   { key: 'place', label: 'Place' },
-  { key: 'customer', label: 'Customer name' },
+  { key: 'customer', label: 'Student name' },
   { key: 'mobile', label: 'Mobile number' },
   { key: 'attendance', label: 'Attendance' },
 ]
@@ -29,7 +29,7 @@ const COLUMNS = [
   { label: 'Date', value: (r) => formatDate(r.date), text: true },
   { label: 'Time', value: (r) => formatTime(r.time), text: true },
   { label: 'Place', value: (r) => r.place },
-  { label: 'Customer', value: (r) => r.customer?.name ?? 'removed' },
+  { label: 'Student', value: (r) => r.customer?.name ?? 'removed' },
   { label: 'Mobile', value: (r) => r.customer?.phone ?? '', text: true },
   { label: 'Attendance', value: (r) => r.attendance ?? 'not marked' },
 ]
@@ -106,7 +106,7 @@ export default function Attendance() {
             {places.map((p) => <option key={p}>{p}</option>)}
           </select>
         </Field>
-        <Field label="Customer">
+        <Field label="Student">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or mobile" />
         </Field>
         <SortBar options={SORTS} sort={sort} onChange={setSort} />
@@ -132,7 +132,7 @@ export default function Attendance() {
           <h3>{formatTime(batch.time)} batch <span className="muted">· {batch.rows.length} lesson{batch.rows.length === 1 ? '' : 's'}</span></h3>
         <table className="stack">
           <thead>
-            <tr><th>Date</th><th>Time</th><th>Place</th><th>Customer</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
+            <tr><th>Date</th><th>Time</th><th>Place</th><th>Student</th><th className="no-print">Mark attendance</th><th className="print-only">Mobile</th><th className="print-only">Attendance</th></tr>
           </thead>
           <tbody>
             {batch.rows.map((a) => (
@@ -140,7 +140,7 @@ export default function Attendance() {
                 <td data-label="Date">{formatDate(a.date)}</td>
                 <td data-label="Time">{formatTime(a.time)}</td>
                 <td data-label="Place">{a.place}</td>
-                <td data-label="Customer">{a.customer ? a.customer.name : <i>removed</i>}</td>
+                <td data-label="Student">{a.customer ? a.customer.name : <i>removed</i>}</td>
                 <td className="print-only">{a.customer?.phone ?? ''}</td>
                 <td className="print-only">{a.attendance ?? 'not marked'}</td>
                 <td className="actions no-print">
@@ -163,7 +163,7 @@ export default function Attendance() {
         </table>
         </section>
       ))}
-      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A customer's profile is removed automatically when their last lesson (20 for Diamond, 10 for Gold) is marked present.</p>
+      <p className="muted no-print">Tip: click a highlighted button again to clear the mark. A student's profile is removed automatically when their last lesson (20 for Diamond, 10 for Gold) is marked present.</p>
       {dialog}
     </section>
   )

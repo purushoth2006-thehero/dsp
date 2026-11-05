@@ -2,8 +2,8 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 const LINKS = [
   { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/customers', label: 'Customers' },
-  { to: '/admin/add', label: 'Add customer' },
+  { to: '/admin/customers', label: 'Students' },
+  { to: '/admin/add', label: 'Add student' },
   { to: '/admin/lessons', label: 'Lessons' },
   { to: '/admin/attendance', label: 'Attendance' },
 ]

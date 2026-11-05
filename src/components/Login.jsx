@@ -43,7 +43,7 @@ export default function Login() {
 
         <div className="tabs" role="group" aria-label="Sign in as">
           <button type="button" className={!isAdmin ? 'active' : ''} aria-pressed={!isAdmin} onClick={() => switchRole(ROLES.CUSTOMER)}>
-            Customer
+            Student
           </button>
           <button type="button" className={isAdmin ? 'active' : ''} aria-pressed={isAdmin} onClick={() => switchRole(ROLES.ADMIN)}>
             Admin

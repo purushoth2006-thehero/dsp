@@ -44,8 +44,8 @@ export default function CustomerForm({
       <Field
         label={requirePassword ? 'Password' : 'New password'}
         hint={requirePassword
-          ? `At least ${MIN_PASSWORD} characters. Give it to the customer: they sign in with their mobile number and this password.`
-          : 'Leave blank to keep the current password. Setting a new one signs the customer out everywhere.'}
+          ? `At least ${MIN_PASSWORD} characters. Give it to the student: they sign in with their mobile number and this password.`
+          : 'Leave blank to keep the current password. Setting a new one signs the student out everywhere.'}
       >
         <PasswordInput value={form.password} onChange={set('password')} autoComplete="new-password" required={requirePassword} />
       </Field>

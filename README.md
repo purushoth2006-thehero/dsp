@@ -2,26 +2,26 @@
 
 A lesson-scheduling and attendance app for a driving school, built with React, Vite and a small serverless API on Vercel.
 
-**There is no public sign-up.** The school office (admin) creates each customer's login and marks attendance. Customers sign in to book, change and cancel their own lessons. Light and dark mode are available on every page.
+**There is no public sign-up.** The school office (admin) creates each student's login and marks attendance. Students sign in to book, change and cancel their own lessons. Light and dark mode are available on every page.
 
 **Live site:** https://dsp-alpha.vercel.app/
 
 ## Features
 
 **Admin**
-- Dashboard: customers, lessons today, upcoming lessons, attendance rate, lessons still to mark, upcoming lessons per branch
-- Customers: search, add (the admin sets the first password), edit, reset password, remove
-- Lessons: schedule, reschedule and cancel lessons for any customer. Taken times are greyed out
-- Attendance: filter by date, place or customer, mark present / absent, export the list to CSV
+- Dashboard: students, lessons today, upcoming lessons, attendance rate, lessons still to mark, upcoming lessons per branch
+- Students: search, add (the admin sets the first password), edit, reset password, remove
+- Lessons: schedule, reschedule and cancel lessons for any student. Taken times are greyed out
+- Attendance: filter by date, place or student, mark present / absent, export the list to CSV
 
 **Packages**
-- The admin picks a package when creating a customer: **Diamond** (20 lessons) or **Gold** (10 lessons)
-- The package can be changed only while the customer has no lessons
+- The admin picks a package when creating a student: **Diamond** (20 lessons) or **Gold** (10 lessons)
+- The package can be changed only while the student has no lessons
 - The place of a lesson is typed (suggestions are offered), so any place can be used
 
-**Customers**
+**Students**
 - Sign in with their mobile number and the password the school gave them
-- Book, change and cancel their own lessons for **today or tomorrow only, one lesson per day** (taken times are greyed out; other customers' names are never shown)
+- Book, change and cancel their own lessons for **today or tomorrow only, one lesson per day** (taken times are greyed out; other students' names are never shown)
 - See upcoming and past lessons, attendance and progress (lessons attended out of 20)
 - At most 5 upcoming lessons at a time, and no more lessons than the package has (missed lessons can be replaced)
 - After the last lesson of the package (20 for Diamond, 10 for Gold) is marked present, the profile and its lessons are removed automatically (the admin is asked to confirm first)
@@ -30,12 +30,12 @@ A lesson-scheduling and attendance app for a driving school, built with React, V
 
 ## Lesson reminders (WhatsApp and SMS)
 
-Customers get a message the evening before (about 6 pm India time) and again the morning of the lesson (about 7 am):
+Students get a message the evening before (about 6 pm India time) and again the morning of the lesson (about 7 am):
 "Hello Asha, reminder from Sridhar Driving School: you have a driving class tomorrow (...) at 9:00 AM at Potheri "
 
 It uses Twilio and Vercel Cron, and stays off until you set it up:
 
-1. Create a Twilio account and get a WhatsApp sender and/or an SMS number. For WhatsApp, Meta requires an approved message template to message customers first; put its Content SID in `TWILIO_WHATSAPP_CONTENT_SID`. In India, SMS needs DLT registration of the sender and template.
+1. Create a Twilio account and get a WhatsApp sender and/or an SMS number. For WhatsApp, Meta requires an approved message template to message students first; put its Content SID in `TWILIO_WHATSAPP_CONTENT_SID`. In India, SMS needs DLT registration of the sender and template.
 2. In Vercel add `CRON_SECRET` (any random 16+ characters), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` and/or `TWILIO_SMS_FROM` (see `.env.example`), then redeploy.
 3. The two schedules are in `vercel.json`. Free Vercel plans run each job once a day, within about an hour of the set time.
 
@@ -46,10 +46,10 @@ Each lesson is reminded once per kind; moving a lesson resets its reminders; a m
 - Lessons are at 6:00 AM, 7:30 AM, 9:00 AM, 10:30 AM, 12:30 PM and 4:30 PM. The school is closed on Sundays and Wednesdays (`TIME_SLOTS` and `CLOSED_WEEKDAYS` in `src/rules.js`)
 - Times are always India time (Asia/Kolkata), whatever the visitor's device is set to
 - No lessons in the past, and no two lessons at the same branch, date and time
-- A customer cannot have two lessons at the same time. Simultaneous requests cannot double-book a slot
+- A student cannot have two lessons at the same time. Simultaneous requests cannot double-book a slot
 - Mobile numbers must be unique. They are are validated (10-digit Indian format)
 - Lessons that have started or been marked cannot be changed or cancelled
-- A customer can only see and change their own lessons; customer accounts, attendance and other people's lessons are admin-only
+- A student can only see and change their own lessons; student accounts, attendance and other people's lessons are admin-only
 
 ## Run it on your computer
 
@@ -62,7 +62,7 @@ npm run build     # production build in dist/
 ```
 
 Locally the API runs inside the Vite dev server with safe defaults, and saves data to `.data/db.json` (ignored by git).
-Sign in as **admin / admin123**, then add a customer and schedule a lesson. Delete `.data/` to start fresh.
+Sign in as **admin / admin123**, then add a student and schedule a lesson. Delete `.data/` to start fresh.
 
 ## Deploy on Vercel
 
@@ -76,12 +76,12 @@ The site works only after these three one-time steps. Until then the login page 
    - Optional: `ADMIN_USERNAME` (defaults to `admin`)
 3. **Redeploy** (Deployments > the latest one > Redeploy).
 
-Changing `ADMIN_PASSWORD` signs the admin out everywhere. Resetting a customer's password signs that customer out everywhere.
+Changing `ADMIN_PASSWORD` signs the admin out everywhere. Resetting a student's password signs that student out everywhere.
 
 ## Security
 
 - Passwords are stored as salted scrypt hashes, never in plain text, and are checked on the server
-- Sessions use a signed, `HttpOnly`, `SameSite=Lax` cookie (`Secure` on https): the admin is signed out when the browser is closed (and after 12 hours at most), customers stay signed in for 7 days
+- Sessions use a signed, `HttpOnly`, `SameSite=Lax` cookie (`Secure` on https): the admin is signed out when the browser is closed (and after 12 hours at most), students stay signed in for 7 days
 - Changes need an `x-dsp` header that other websites cannot add, which blocks cross-site request forgery
 - Sign-in is limited to 10 attempts per 15 minutes per IP address
 - In production the API refuses to start without the admin password, session secret and database
@@ -91,7 +91,7 @@ Changing `ADMIN_PASSWORD` signs the admin out everywhere. Resetting a customer's
 ```
 api/[...slug].js     Vercel function: every /api/* request
 server/handler.js    routes, sessions, login, rate limit
-server/service.js    customers and lessons (business logic, double-booking locks)
+server/service.js    students and lessons (business logic, double-booking locks)
 server/security.js   password hashing, signed tokens, cookies
 server/config.js     environment variables and production checks
 server/store/        Upstash Redis store, and a local file store for development
@@ -100,7 +100,7 @@ src/state/           app state: loads server data, keeps it fresh
 src/components/      Login, CustomerPortal, admin/* pages
 ```
 
-Routes: `/` (public home), `/services`, `/offers`, `/contact`, `/login` (Student Corner), `/customer`, `/admin`, `/admin/customers`, `/admin/add`, `/admin/lessons`, `/admin/attendance`.
+Routes: `/` (public home), `/services`, `/offers`, `/contact`, `/login` (Student Corner), `/student`, `/admin`, `/admin/students`, `/admin/add`, `/admin/lessons`, `/admin/attendance`.
 `vercel.json` sends every non-API path to `index.html` so these URLs work when refreshed.
 
 ## Roadmap

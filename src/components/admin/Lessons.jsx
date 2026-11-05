@@ -11,7 +11,7 @@ import { BRAND, groupByBatch, sortRows, formatDate, formatTime, isPast } from '.
 
 const SORTS = [
   { key: 'when', label: 'Date and time' },
-  { key: 'customer', label: 'Customer name' },
+  { key: 'customer', label: 'Student name' },
   { key: 'place', label: 'Place' },
 ]
 
@@ -26,7 +26,7 @@ export default function Lessons() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState({ key: 'when', dir: 'asc' })
 
-  const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'Unknown customer'
+  const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'Unknown student'
 
   const upcoming = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -65,7 +65,7 @@ export default function Lessons() {
         <h2>{editing ? 'Reschedule lesson' : 'Schedule a lesson'}</h2>
 
         {data.customers.length === 0 ? (
-          <p className="empty">You need a customer first. <Link to="/admin/add">Add one.</Link></p>
+          <p className="empty">You need a student first. <Link to="/admin/add">Add one.</Link></p>
         ) : (
           <LessonForm key={editing?.id ?? 'new'} customers={data.customers} editing={editing} onDone={() => setEditing(null)} />
         )}
@@ -75,7 +75,7 @@ export default function Lessons() {
         <h2 className="print-only">{BRAND}: lesson schedule{query.trim() ? `, ${query.trim()}` : ''}</h2>
         <div className="toolbar">
           <h2>Upcoming lessons ({upcoming.length})</h2>
-          <Field label="Customer">
+          <Field label="Student">
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name" />
           </Field>
           <SortBar options={SORTS} sort={sort} onChange={setSort} />
@@ -88,13 +88,13 @@ export default function Lessons() {
             <h3>{formatTime(batch.time)} batch <span className="muted">· {batch.rows.length} lesson{batch.rows.length === 1 ? '' : 's'}</span></h3>
           <table className="stack">
             <thead>
-              <tr><th className="print-only">No.</th><th>Customer</th><th className="print-only">Mobile</th><th>Date</th><th>Time</th><th>Place</th><th className="no-print"><span className="visually-hidden">Actions</span></th></tr>
+              <tr><th className="print-only">No.</th><th>Student</th><th className="print-only">Mobile</th><th>Date</th><th>Time</th><th>Place</th><th className="no-print"><span className="visually-hidden">Actions</span></th></tr>
             </thead>
             <tbody>
               {batch.rows.map((a, i) => (
                 <tr key={a.id} className={a.id === editing?.id ? 'editing' : ''}>
                   <td className="print-only">{i + 1}</td>
-                  <td data-label="Customer">{nameOf(a.customerId)}</td>
+                  <td data-label="Student">{nameOf(a.customerId)}</td>
                   <td className="print-only">{data.customers.find((c) => c.id === a.customerId)?.phone ?? ''}</td>
                   <td data-label="Date">{formatDate(a.date)}</td>
                   <td data-label="Time">{formatTime(a.time)}</td>

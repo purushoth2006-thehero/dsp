@@ -79,7 +79,7 @@ export default function Customers() {
   const saveEdit = async (form) => {
     const result = await updateCustomer(editing.id, form)
     if (result.ok) {
-      toast('Customer updated.')
+      toast('Student updated.')
       setEditing(null)
     }
     return result
@@ -98,7 +98,7 @@ export default function Customers() {
 
       {rows.length === 0 && (
         <p className="empty">
-          {data.customers.length === 0 ? <>No customers yet. <Link to="/admin/add">Add the first one.</Link></> : 'No customers match your search.'}
+          {data.customers.length === 0 ? <>No students yet. <Link to="/admin/add">Add the first one.</Link></> : 'No students match your search.'}
         </p>
       )}
 
