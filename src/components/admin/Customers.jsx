@@ -5,15 +5,34 @@ import { useToast } from '../../ui/toastContext.js'
 import useConfirm from '../../ui/useConfirm.jsx'
 import Modal from '../../ui/Modal.jsx'
 import { Field } from '../../ui/Field.jsx'
+import SortBar from '../../ui/SortBar.jsx'
 import CustomerForm from '../CustomerForm.jsx'
 import ScheduleSheet from '../ScheduleSheet.jsx'
-import { ATTENDANCE, normalizePhone, packageOf } from '../../rules.js'
+import { ATTENDANCE, normalizePhone, packageOf, sortRows } from '../../rules.js'
+
+const SORTS = [
+  { key: 'name', label: 'Name' },
+  { key: 'mobile', label: 'Mobile number' },
+  { key: 'package', label: 'Package' },
+  { key: 'total', label: 'Lessons booked' },
+  { key: 'present', label: 'Present' },
+  { key: 'absent', label: 'Absent' },
+]
+const KEYS = {
+  name: (c) => c.name,
+  mobile: (c) => c.phone,
+  package: (c) => packageOf(c).lessons,
+  total: (c) => c.total,
+  present: (c) => c.present,
+  absent: (c) => c.absent,
+}
 
 export default function Customers() {
   const { data, updateCustomer, removeCustomer } = useApp()
   const toast = useToast()
   const [ask, dialog] = useConfirm()
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
   const [editing, setEditing] = useState(null) // the customer being edited
   const [printing, setPrinting] = useState(null) // the customer whose schedule is being printed
 
@@ -29,7 +48,7 @@ export default function Customers() {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     const digits = normalizePhone(query)
-    return data.customers
+    const list = data.customers
       .filter((c) => !q
         || c.name.toLowerCase().includes(q)
         || (digits && c.phone.includes(digits)))
@@ -42,7 +61,8 @@ export default function Customers() {
           absent: appts.filter((a) => a.attendance === ATTENDANCE.ABSENT).length,
         }
       })
-  }, [data, query])
+    return sortRows(list, KEYS, sort.key, sort.dir)
+  }, [data, query, sort])
 
   const remove = async (c) => {
     const confirmed = await ask({
@@ -73,6 +93,7 @@ export default function Customers() {
         <Field label="Search">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or mobile" />
         </Field>
+        <SortBar options={SORTS} sort={sort} onChange={setSort} />
       </div>
 
       {rows.length === 0 && (

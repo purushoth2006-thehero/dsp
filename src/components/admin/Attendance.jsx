@@ -2,11 +2,28 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../../state/appContext.js'
 import { useToast } from '../../ui/toastContext.js'
 import { Field } from '../../ui/Field.jsx'
+import SortBar from '../../ui/SortBar.jsx'
 import useConfirm from '../../ui/useConfirm.jsx'
 import { downloadTextFile } from '../../download.js'
 import {
-  ATTENDANCE, BRAND, byDateTime, placeKey, placeList, lessonsFor, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
+  ATTENDANCE, BRAND, placeKey, sortRows, placeList, lessonsFor, formatDate, formatTime, normalizePhone, toCsv, toLocalDate, nowInZone,
 } from '../../rules.js'
+
+const SORTS = [
+  { key: 'when', label: 'Date and time' },
+  { key: 'place', label: 'Place' },
+  { key: 'customer', label: 'Customer name' },
+  { key: 'mobile', label: 'Mobile number' },
+  { key: 'attendance', label: 'Attendance' },
+]
+const ATTENDANCE_ORDER = { present: 0, absent: 1 } // not marked comes last
+const KEYS = {
+  when: (a) => a.date + a.time,
+  place: (a) => a.place,
+  customer: (a) => a.customer?.name ?? '',
+  mobile: (a) => a.customer?.phone ?? '',
+  attendance: (a) => ATTENDANCE_ORDER[a.attendance] ?? 2,
+}
 
 const COLUMNS = [
   { label: 'Date', value: (r) => formatDate(r.date), text: true },
@@ -23,21 +40,22 @@ export default function Attendance() {
   const [ask, dialog] = useConfirm()
   const [filterDate, setFilterDate] = useState('')
   const [filterPlace, setFilterPlace] = useState('')
+  const [sort, setSort] = useState({ key: 'when', dir: 'asc' })
   const places = useMemo(() => placeList(data.appointments), [data.appointments])
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     const digits = normalizePhone(query)
-    return data.appointments
+    const filtered = data.appointments
       .map((a) => ({ ...a, customer: data.customers.find((c) => c.id === a.customerId) }))
       .filter((a) => !filterDate || a.date === filterDate)
       .filter((a) => !filterPlace || placeKey(a.place) === placeKey(filterPlace))
       .filter((a) => !q
         || a.customer?.name.toLowerCase().includes(q)
         || (digits && a.customer?.phone.includes(digits)))
-      .sort(byDateTime)
-  }, [data, filterDate, filterPlace, query])
+    return sortRows(filtered, KEYS, sort.key, sort.dir)
+  }, [data, filterDate, filterPlace, query, sort])
 
   const hasFilters = Boolean(filterDate || filterPlace || query)
 
@@ -91,6 +109,7 @@ export default function Attendance() {
         <Field label="Customer">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or mobile" />
         </Field>
+        <SortBar options={SORTS} sort={sort} onChange={setSort} />
         {hasFilters && <button type="button" className="ghost" onClick={clearFilters}>Clear filters</button>}
         <button type="button" className="ghost" onClick={exportCsv} disabled={rows.length === 0}>
           Export CSV

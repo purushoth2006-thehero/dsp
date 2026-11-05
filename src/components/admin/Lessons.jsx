@@ -6,7 +6,14 @@ import useConfirm from '../../ui/useConfirm.jsx'
 import useNow from '../../ui/useNow.js'
 import { Field } from '../../ui/Field.jsx'
 import LessonForm from '../LessonForm.jsx'
-import { BRAND, byDateTime, formatDate, formatTime, isPast } from '../../rules.js'
+import SortBar from '../../ui/SortBar.jsx'
+import { BRAND, sortRows, formatDate, formatTime, isPast } from '../../rules.js'
+
+const SORTS = [
+  { key: 'when', label: 'Date and time' },
+  { key: 'customer', label: 'Customer name' },
+  { key: 'place', label: 'Place' },
+]
 
 // The admin schedules, moves and cancels every lesson.
 export default function Lessons() {
@@ -17,16 +24,22 @@ export default function Lessons() {
 
   const [editing, setEditing] = useState(null) // the lesson being rescheduled
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState({ key: 'when', dir: 'asc' })
 
   const nameOf = (id) => data.customers.find((c) => c.id === id)?.name ?? 'Unknown customer'
 
   const upcoming = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return data.appointments
+    const list = data.appointments
       .filter((a) => !isPast(a.date, a.time, now))
       .filter((a) => !q || (data.customers.find((c) => c.id === a.customerId)?.name ?? '').toLowerCase().includes(q))
-      .sort(byDateTime)
-  }, [data, now, query])
+    const keys = {
+      when: (a) => a.date + a.time,
+      customer: (a) => data.customers.find((c) => c.id === a.customerId)?.name ?? '',
+      place: (a) => a.place,
+    }
+    return sortRows(list, keys, sort.key, sort.dir)
+  }, [data, now, query, sort])
 
   const cancel = async (appt) => {
     const confirmed = await ask({
@@ -65,6 +78,7 @@ export default function Lessons() {
           <Field label="Customer">
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name" />
           </Field>
+          <SortBar options={SORTS} sort={sort} onChange={setSort} />
           <button type="button" className="ghost" onClick={() => window.print()} disabled={upcoming.length === 0}>Print schedule</button>
         </div>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PACKAGES, PLACES, addDays, bookableDates, isBookableByCustomer, isValidPlace, packageOf, placeKey, placeList, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
+  PACKAGES, PLACES, addDays, bookableDates, isBookableByCustomer, isValidPlace, packageOf, placeKey, placeList, sortRows, computeStats, formatTime, getSlotConflict, isPast, isValidPhone,
   normalizePhone, toCsv, toLocalDate, validateCustomer,
 } from './rules.js'
 
@@ -92,6 +92,25 @@ describe('places, days and packages', () => {
     expect(packageOf({ package: 'standard' }).id).toBe('diamond')
     expect(packageOf({ package: 'ladies' }).id).toBe('gold')
     expect(packageOf({}).id).toBe('diamond')
+  })
+})
+
+describe('sortRows', () => {
+  const rows = [
+    { id: 1, name: 'Bala', n: 10, date: '2026-10-20', time: '09:00' },
+    { id: 2, name: 'asha', n: 2, date: '2026-10-20', time: '06:00' },
+    { id: 3, name: 'Charan', n: 2, date: '2026-10-19', time: '12:30' },
+  ]
+  const keys = { name: (r) => r.name, n: (r) => r.n }
+  it('sorts text ignoring capitals, and numbers as numbers', () => {
+    expect(sortRows(rows, keys, 'name').map((r) => r.id)).toEqual([2, 1, 3])
+    expect(sortRows(rows, keys, 'name', 'desc').map((r) => r.id)).toEqual([3, 1, 2])
+    expect(sortRows(rows, keys, 'n', 'desc').map((r) => r.id)).toEqual([1, 3, 2]) // ties by date/time
+  })
+  it('does not change the original list', () => {
+    const copy = [...rows]
+    sortRows(rows, keys, 'n')
+    expect(rows).toEqual(copy)
   })
 })
 

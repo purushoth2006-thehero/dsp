@@ -203,3 +203,15 @@ export function toCsv(rows, columns) {
   const body = rows.map((r) => columns.map((c) => cell(c, r)).join(','))
   return [header, ...body].join('\r\n')
 }
+
+// ---------- sorting ----------
+
+// Sorts rows by one of `keys` ({ key: row => value }), ascending or descending, keeping ties in date/time order.
+export function sortRows(rows, keys, key, dir = 'asc') {
+  const get = keys[key] ?? Object.values(keys)[0]
+  const sign = dir === 'desc' ? -1 : 1
+  const cmp = (x, y) => (typeof x === 'number' && typeof y === 'number'
+    ? x - y
+    : String(x ?? '').localeCompare(String(y ?? ''), undefined, { numeric: true, sensitivity: 'base' }))
+  return [...rows].sort((a, b) => sign * cmp(get(a), get(b)) || (a.date ? byDateTime(a, b) : 0))
+}
