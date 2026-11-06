@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomInt, scrypt, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
 
 const scryptAsync = promisify(scrypt)
@@ -77,4 +77,32 @@ export function parseCookies(header = '') {
 
 export function buildCookie(name, value, { maxAge, secure }) {
   return `${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/${maxAge == null ? '' : `; Max-Age=${maxAge}`}${secure ? '; Secure' : ''}`
+}
+
+// ---------- one-time codes (OTP) ----------
+
+export const newOtp = () => String(randomInt(0, 1_000_000)).padStart(6, '0')
+export const newChallengeId = () => randomBytes(18).toString('base64url')
+// The code is stored only as an HMAC, tied to its challenge, so a database leak does not reveal live codes.
+export const hashOtp = (code, challengeId, secret) =>
+  createHmac('sha256', secret).update(`otp|${challengeId}|${code}`).digest('hex')
+
+// ---------- captcha (a distorted-text picture; no outside service needed) ----------
+
+const CAPTCHA_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no 0/O, 1/I that people mix up
+export const newCaptchaText = () => Array.from({ length: 5 }, () => CAPTCHA_CHARS[randomInt(CAPTCHA_CHARS.length)]).join('')
+export const hashCaptcha = (text, nonce, secret) =>
+  createHmac('sha256', secret).update(`captcha|${nonce}|${String(text).trim().toUpperCase()}`).digest('hex')
+
+export function captchaSvg(text) {
+  const r = (n) => randomInt(n)
+  const letters = [...text].map((ch, i) => {
+    const x = 18 + i * 26, y = 36 + r(8), rot = r(41) - 20
+    const fill = `hsl(${r(360)},60%,35%)`
+    return `<text x="${x}" y="${y}" font-size="${28 + r(6)}" font-family="monospace" font-weight="bold" fill="${fill}" transform="rotate(${rot} ${x} ${y})">${ch}</text>`
+  }).join('')
+  const lines = Array.from({ length: 5 }, () =>
+    `<line x1="${r(160)}" y1="${r(50)}" x2="${r(160)}" y2="${r(50)}" stroke="hsl(${r(360)},50%,55%)" stroke-width="1.5"/>`).join('')
+  const dots = Array.from({ length: 25 }, () => `<circle cx="${r(160)}" cy="${r(50)}" r="1.3" fill="#888"/>`).join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="50" viewBox="0 0 160 50"><rect width="160" height="50" fill="#f3f4f6"/>${lines}${letters}${dots}</svg>`
 }

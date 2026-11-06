@@ -787,7 +787,7 @@ describe('production safety', () => {
     const mock = await startMockUpstash()
     const env = {
       NODE_ENV: 'production', ADMIN_PASSWORD: 'a-long-admin-password', SESSION_SECRET: 'x'.repeat(32),
-      KV_REST_API_URL: mock.url, KV_REST_API_TOKEN: 'test-token',
+      KV_REST_API_URL: mock.url, KV_REST_API_TOKEN: 'test-token', CAPTCHA_REQUIRED: 'false', // captcha has its own tests
     }
     const api = await startApi(undefined, { env })
     const b = newBrowser(api.base)

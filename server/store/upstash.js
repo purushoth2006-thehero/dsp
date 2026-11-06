@@ -43,8 +43,9 @@ export class UpstashStore {
     return (await this.#cmd('GET', key)) ?? null
   }
 
-  async set(key, value) {
-    await this.#cmd('SET', key, value)
+  async set(key, value, ttlSec) {
+    if (ttlSec) await this.#cmd('SET', key, value, 'EX', ttlSec)
+    else await this.#cmd('SET', key, value)
   }
 
   async setnx(key, value) {

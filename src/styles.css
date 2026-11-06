@@ -299,3 +299,6 @@ tr.editing td { background: var(--editing); }
   .site-brand span { font-size: 1rem; }
 }
 @media print { td.attendance-blank { height: 28px; min-width: 90px; } }
+
+.captcha { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.captcha img { border: 1px solid var(--border, #d1d5db); border-radius: 6px; max-width: 100%; }
