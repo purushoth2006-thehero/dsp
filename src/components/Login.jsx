@@ -78,13 +78,15 @@ export default function Login() {
           </Field>
 
           {captcha && (
-            <Field label="Type the letters you see">
+            <>
               <div className="captcha">
                 <img src={captcha.image} alt="Captcha: distorted letters" width="160" height="50" />
                 <button type="button" className="ghost" onClick={loadCaptcha} aria-label="New picture">↻</button>
               </div>
-              <input value={captchaText} onChange={(e) => setCaptchaText(e.target.value.slice(0, 8))} autoComplete="off" autoCapitalize="characters" required />
-            </Field>
+              <Field label="Type the letters you see">
+                <input value={captchaText} onChange={(e) => setCaptchaText(e.target.value.slice(0, 8))} autoComplete="off" autoCapitalize="characters" required />
+              </Field>
+            </>
           )}
 
           {error && <p className="error" role="alert">{error}</p>}
