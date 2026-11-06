@@ -3,8 +3,7 @@ import { createStore } from './store/index.js'
 import { HttpError, createService } from './service.js'
 import { createNotifier } from './notify.js'
 import { REMINDER_KINDS, sendReminders } from './reminders.js'
-import { buildCookie, captchaSvg, fingerprint, hashCaptcha, newCaptchaText, hashOtp, newChallengeId, newOtp, parseCookies, safeEqual, signToken, verifyToken } from './security.js'
-import { BRAND } from '../src/rules.js'
+import { buildCookie, captchaSvg, fingerprint, hashCaptcha, newCaptchaText, newChallengeId, parseCookies, safeEqual, signToken, verifyToken } from './security.js'
 
 const COOKIE = 'dsp_session'
 const ADMIN_TTL = 12 * 60 * 60 // seconds
@@ -12,9 +11,6 @@ const CUSTOMER_TTL = 7 * 24 * 60 * 60
 const MAX_LOGIN_ATTEMPTS = 10
 const MAX_ACCOUNT_ATTEMPTS = 20 // per account, from anywhere, so a botnet can't guess one password forever
 const LOGIN_WINDOW = 15 * 60
-const OTP_TTL = 5 * 60 // a login code is valid for 5 minutes
-const OTP_MAX_TRIES = 5
-const maskPhone = (phone) => `******${String(phone).slice(-4)}`
 const CAPTCHA_TTL = 5 * 60
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -66,9 +62,6 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
   const store = injectedStore ?? createStore(cfg)
   const service = store ? createService(store, now ? { now } : {}) : null
   const notifier = injectedNotifier ?? createNotifier(env)
-
-  // Every sign-in needs a code sent to the person's mobile, once a messaging account (Twilio) is set up.
-  const otpOn = notifier.channels.length > 0 && cfg.otpRequired
 
   const secureCookie = (req) => cfg.prod || req.headers['x-forwarded-proto'] === 'https'
   const clearCookie = (req) => buildCookie(COOKIE, '', { maxAge: 0, secure: secureCookie(req) })
@@ -158,30 +151,9 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
       const customer = await service.verifyLogin(body.identifier, body.password)
       if (!customer) throw new HttpError(401, 'Invalid mobile number or password.')
       maxAge = CUSTOMER_TTL
-      payload = { r: 'customer', id: customer.id, ph: fingerprint(customer.passwordHash), phone: customer.phone }
+      payload = { r: 'customer', id: customer.id, ph: fingerprint(customer.passwordHash) }
     } else {
       throw new HttpError(400, 'Invalid request.')
-    }
-
-    if (otpOn) {
-      // Password is right: send a code and wait for it. No session exists until the code is verified.
-      const phone = body.role === 'admin' ? cfg.adminPhone : payload.phone
-      const challenge = newChallengeId()
-      const code = newOtp()
-      const record = {
-        session: { r: payload.r, id: payload.id, ph: payload.ph, maxAge },
-        admin: body.role === 'admin', phone, hash: hashOtp(code, challenge, cfg.secret),
-        exp: Date.now() + OTP_TTL * 1000, tries: 0, keys: [key, accountKey],
-      }
-      await store.set(`otp:${challenge}`, JSON.stringify(record), OTP_TTL * 2)
-      const text = `${code} is your ${BRAND} login code. It is valid for 5 minutes. Do not share it with anyone.`
-      const outcome = await notifier.send(phone, { text, variables: { 1: code } }, 'otp')
-      if (outcome.sent.length === 0) {
-        await store.del(`otp:${challenge}`)
-        console.error('Could not send login code:', JSON.stringify(outcome.failed))
-        throw new HttpError(502, 'We could not send the login code right now. Please try again in a minute.')
-      }
-      return send(res, 200, { otp: true, challenge, phoneHint: maskPhone(phone) })
     }
 
     await store.del(key)
@@ -194,35 +166,6 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
     // The admin cookie has no Max-Age, so the browser deletes it when it is closed. (The token also expires after 12 hours.)
     const cookie = buildCookie(COOKIE, signToken(token, cfg.secret), { maxAge: isAdmin ? undefined : maxAge, secure: secureCookie(req) })
     return send(res, 200, { ok: true }, { 'set-cookie': cookie })
-  }
-
-  async function verifyCode(req, res) {
-    const body = await readJson(req)
-    const ipKey = `rl:otp:${clientIp(req)}`
-    if ((await store.incr(ipKey, LOGIN_WINDOW)) > MAX_LOGIN_ATTEMPTS * 3) {
-      throw new HttpError(429, 'Too many attempts. Please wait 15 minutes and try again.')
-    }
-    const challenge = typeof body.challenge === 'string' ? body.challenge.slice(0, 64) : ''
-    const code = typeof body.code === 'string' ? body.code.trim() : ''
-    const raw = challenge && (await store.get(`otp:${challenge}`))
-    const record = raw ? JSON.parse(raw) : null
-    const expired = new HttpError(400, 'This code has expired. Please sign in again.')
-    if (!record || record.exp < Date.now()) {
-      if (record) await store.del(`otp:${challenge}`)
-      throw expired
-    }
-    if (record.tries >= OTP_MAX_TRIES) {
-      await store.del(`otp:${challenge}`)
-      throw new HttpError(429, 'Too many wrong codes. Please sign in again.')
-    }
-    if (!/^\d{6}$/.test(code) || !safeEqual(hashOtp(code, challenge, cfg.secret), record.hash)) {
-      record.tries += 1
-      await store.set(`otp:${challenge}`, JSON.stringify(record), OTP_TTL * 2)
-      throw new HttpError(401, 'That code is not right. Please check and try again.')
-    }
-    await store.del(`otp:${challenge}`) // a code works once
-    await Promise.all(record.keys.map((k) => store.del(k)))
-    return startSession(req, res, record.session, record.admin)
   }
 
   async function route(req, res) {
@@ -262,10 +205,6 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
     if (path === '/api/login') {
       if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
       return login(req, res)
-    }
-    if (path === '/api/login/verify') {
-      if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
-      return verifyCode(req, res)
     }
     if (path === '/api/logout') {
       if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')

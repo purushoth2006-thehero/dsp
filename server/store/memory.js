@@ -57,7 +57,6 @@ export class MemoryStore {
     return this.strings.get(key) ?? null
   }
 
-  // ttlSec is accepted for Redis compatibility; callers that need expiry also keep it inside the value.
   async set(key, value) {
     this.strings.set(key, String(value))
     this.#save()

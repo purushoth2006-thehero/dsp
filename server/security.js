@@ -79,13 +79,7 @@ export function buildCookie(name, value, { maxAge, secure }) {
   return `${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/${maxAge == null ? '' : `; Max-Age=${maxAge}`}${secure ? '; Secure' : ''}`
 }
 
-// ---------- one-time codes (OTP) ----------
-
-export const newOtp = () => String(randomInt(0, 1_000_000)).padStart(6, '0')
 export const newChallengeId = () => randomBytes(18).toString('base64url')
-// The code is stored only as an HMAC, tied to its challenge, so a database leak does not reveal live codes.
-export const hashOtp = (code, challengeId, secret) =>
-  createHmac('sha256', secret).update(`otp|${challengeId}|${code}`).digest('hex')
 
 // ---------- captcha (a distorted-text picture; no outside service needed) ----------
 

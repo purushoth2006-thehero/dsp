@@ -5,8 +5,6 @@ export function getConfig(env = process.env) {
   const prod = env.NODE_ENV === 'production' || Boolean(env.VERCEL)
 
   const adminUser = env.ADMIN_USERNAME || 'admin'
-  // The admin's one-time codes go to this mobile number.
-  const adminPhone = String(env.ADMIN_PHONE || '7373515196').replace(/\D/g, '').slice(-10)
   const adminPass = env.ADMIN_PASSWORD || (prod ? '' : 'admin123')
   const secret = env.SESSION_SECRET || (prod ? '' : 'dev-only-secret-not-for-production')
 
@@ -22,7 +20,7 @@ export function getConfig(env = process.env) {
   }
 
   return {
-    prod, adminUser, adminPass, adminPhone, captchaRequired: prod ? env.CAPTCHA_REQUIRED !== 'false' : env.CAPTCHA_REQUIRED === 'true', otpRequired: env.OTP_REQUIRED !== 'false', secret, dbUrl, dbToken,
+    prod, adminUser, adminPass, captchaRequired: prod ? env.CAPTCHA_REQUIRED !== 'false' : env.CAPTCHA_REQUIRED === 'true', secret, dbUrl, dbToken,
     dataFile: env.DSP_DATA_FILE || '.data/db.json',
     problems,
   }

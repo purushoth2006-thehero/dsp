@@ -7,9 +7,7 @@ import ThemeToggle from '../ui/ThemeToggle.jsx'
 import { BRAND, ROLES } from '../rules.js'
 
 export default function Login() {
-  const { loginAdmin, loginCustomer, verifyLogin, serverError } = useApp()
-  const [pending, setPending] = useState(null) // { challenge, phoneHint } while waiting for the code
-  const [code, setCode] = useState('')
+  const { loginAdmin, loginCustomer, serverError } = useApp()
   const [captcha, setCaptcha] = useState(null) // { id, image }; null when the server does not ask for one
   const [captchaText, setCaptchaText] = useState('')
 
@@ -44,22 +42,7 @@ export default function Login() {
     setBusy(false)
     loadCaptcha() // a picture can be tried only once
     if (!result.ok) setError(result.error)
-    else if (result.otp) { setPending({ challenge: result.challenge, phoneHint: result.phoneHint }); setCode('') }
   }
-
-  const submitCode = async (e) => {
-    e.preventDefault()
-    setError('')
-    setBusy(true)
-    const result = await verifyLogin(pending.challenge, code)
-    setBusy(false)
-    if (!result.ok) {
-      setError(result.error)
-      if (/sign in again/i.test(result.error)) { setPending(null); setPassword('') }
-    }
-  }
-
-  const cancelCode = () => { setPending(null); setCode(''); setPassword(''); setError('') }
 
   const isAdmin = role === ROLES.ADMIN
 
@@ -72,21 +55,6 @@ export default function Login() {
 
         {serverError && <p className="banner" role="alert">{serverError}</p>}
 
-        {pending ? (
-          <form className="form" onSubmit={submitCode}>
-            <p className="hint">We sent a 6-digit code to {pending.phoneHint}. Enter it to finish signing in.</p>
-            <Field label="Login code">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="\d{6}" required autoFocus
-              />
-            </Field>
-            {error && <p className="error" role="alert">{error}</p>}
-            <button className="primary" type="submit" disabled={busy || code.length !== 6}>{busy ? 'Verifying…' : 'Verify and sign in'}</button>
-            <button type="button" className="ghost" onClick={cancelCode}>Cancel / send a new code</button>
-          </form>
-        ) : (<>
         <div className="tabs" role="group" aria-label="Sign in as">
           <button type="button" className={!isAdmin ? 'active' : ''} aria-pressed={!isAdmin} onClick={() => switchRole(ROLES.CUSTOMER)}>
             Student
@@ -126,7 +94,6 @@ export default function Login() {
         {!isAdmin && (
           <p className="hint">Your login is created by the school office. Please contact them if you need one.</p>
         )}
-        </>)}
       </div>
     </main>
   )

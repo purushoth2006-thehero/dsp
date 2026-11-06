@@ -57,8 +57,6 @@ export default function AppProvider({ children }) {
 
     loginAdmin: (username, password, captcha) => run('POST', '/api/login', { role: 'admin', username, password, ...captcha }),
     loginCustomer: (identifier, password, captcha) => run('POST', '/api/login', { role: 'customer', identifier, password, ...captcha }),
-    // Step one of sign-in may answer { otp: true, challenge, phoneHint }: a code was sent and must be entered.
-    verifyLogin: (challenge, code) => run('POST', '/api/login/verify', { challenge, code }),
     logout: () => run('POST', '/api/logout', {}),
 
     addCustomer: (form) => run('POST', '/api/customers', form),

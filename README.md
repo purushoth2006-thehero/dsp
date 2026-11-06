@@ -114,4 +114,3 @@ Routes: `/` (public home), `/services`, `/offers`, `/contact`, `/login` (Student
 ## Sign-in security
 
 - **Captcha**: every sign-in needs the letters from a picture (own captcha, no outside service). Each picture works once and expires in 5 minutes. Production default is on; `CAPTCHA_REQUIRED=false` turns it off.
-- **Login code (OTP)**: once Twilio is configured, a correct password sends a 6-digit code (valid 5 minutes, 5 tries, single use) to the student's mobile, or to `ADMIN_PHONE` (default 7373515196) for the admin. No session exists until the code is verified. Without Twilio the code step is skipped; `OTP_REQUIRED=false` skips it even with Twilio.
