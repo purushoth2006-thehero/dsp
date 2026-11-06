@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { BRAND, CLOSED_WEEKDAYS, PACKAGES, PLACES, TIME_SLOTS, formatTime } from '../../rules.js'
 
 export const PHONE = '7373515196'
@@ -12,14 +11,13 @@ export function HomePage() {
         <h1>{BRAND}</h1>
         <p>Learn to drive with patient, friendly training. Choose your package, pick your batch and book your classes online.</p>
         <div className="hero-actions">
-          <Link to="/login" className="primary">Student Corner</Link>
-          <a href={`tel:+91${PHONE}`} className="ghost">Call {PHONE}</a>
+          <a href={`tel:+91${PHONE}`} className="primary">Call {PHONE}</a>
         </div>
       </section>
       <section className="info-grid">
         <div className="card"><h2>{PACKAGES.diamond.lessons} or {PACKAGES.gold.lessons} lessons</h2><p>Diamond: {PACKAGES.diamond.lessons} lessons. Gold: {PACKAGES.gold.lessons} lessons.</p></div>
         <div className="card"><h2>{TIME_SLOTS.length} batches a day</h2><p>{TIME_SLOTS.map(formatTime).join(', ')}.</p></div>
-        <div className="card"><h2>Book online</h2><p>Students book their own classes in the Student Corner.</p></div>
+        <div className="card"><h2>Book online</h2><p>Students sign in from the top right corner and book their own classes.</p></div>
       </section>
     </>
   )
@@ -52,7 +50,7 @@ export function ServicesPage() {
         </div>
         <div className="card">
           <h2>Online booking</h2>
-          <p>Book, change or cancel your class for today or tomorrow in the <Link to="/login">Student Corner</Link>.</p>
+          <p>Book, change or cancel your class for today or tomorrow after signing in from the top right corner.</p>
         </div>
       </section>
     </>
