@@ -83,8 +83,8 @@
 
 /* driving game */
 .game { max-width: 440px; }
-.game-stage { position: relative; border-radius: 10px; overflow: hidden; border: 3px solid var(--tarmac); touch-action: none; }
-.game-stage canvas { display: block; width: 100%; height: auto; }
+.game-stage { position: relative; border-radius: 10px; overflow: hidden; border: 3px solid var(--tarmac); touch-action: none; aspect-ratio: 3 / 4; }
+.game-stage canvas { display: block; width: 100%; height: 100%; }
 .game-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   padding: 20px; background: rgba(20, 24, 28, .86); color: #fff; text-align: center;
@@ -113,3 +113,26 @@
 .drive-pad .ghost:active { background: var(--none-bg); }
 .pad-pedals .brake { border-color: #d62828; color: #d62828; }
 .pad-pedals .gas { border-color: var(--sign); color: var(--sign); min-width: 92px; }
+
+/* full-screen mode on phones and tablets */
+.game.full {
+  position: fixed; inset: 0; z-index: 100; max-width: none; display: flex; flex-direction: column;
+  background: var(--tarmac); overscroll-behavior: none; touch-action: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+.game.full .drive-hud { margin: 0; border-radius: 0; flex: none; }
+.game.full .game-stage { flex: 1; min-height: 0; aspect-ratio: auto; border: 0; border-radius: 0; }
+.game.full .drive-pad {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+  pointer-events: none; z-index: 2;
+}
+.game.full .drive-pad .ghost {
+  pointer-events: auto; min-width: 64px; min-height: 84px; padding: 0 8px; border-radius: 18px; color: #fff;
+  background: rgba(20, 24, 28, .55); border: 2px solid rgba(255, 255, 255, .6); -webkit-touch-callout: none;
+}
+.game.full .pad-steer, .game.full .pad-pedals { gap: 8px; }
+.game.full .pad-pedals .brake { min-width: 76px; border-color: #ff6b61; color: #ff8a82; }
+.game.full .pad-pedals .gas { border-color: #4ade80; color: #86efac; min-width: 88px; min-height: 100px; }
+.drive-hud .exit { margin-left: 8px; background: transparent; color: #fff; border: 2px solid rgba(255, 255, 255, .6); border-radius: 8px; width: 38px; height: 38px; padding: 0; font-size: 1.1rem; }
+.game-overlay { z-index: 1; }
+.game.full .game-overlay { padding-bottom: 130px; }

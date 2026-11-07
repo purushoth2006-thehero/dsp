@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CAR, ROAD_HALF, SPEED_LIMIT, buildTrack, drivingScore, kmh, newRun, stepRun } from '../../drive.js'
 
-const W = 420
-const H = 560
 const BEST_KEY = 'dsp-drive-best-lap'
+
+// On a phone the game takes the whole screen, so the road and the pedals are both in view and the page cannot scroll.
+const SMALL = '(max-width: 820px), (pointer: coarse)'
 
 const readBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0 } catch { return 0 } }
 const saveBest = (t) => { try { localStorage.setItem(BEST_KEY, String(t)) } catch { /* private mode: the best time is not kept */ } }
@@ -35,7 +36,7 @@ function drawCar(ctx, car) {
   ctx.restore()
 }
 
-function draw(ctx, track, run, hud) {
+function draw(ctx, track, run, hud, W, H) {
   const { car } = run
   const scale = 8.5 - Math.min(Math.abs(car.v), 30) * 0.1 // zoom out a little at speed
   ctx.fillStyle = '#2d8a4e'
@@ -96,6 +97,35 @@ export default function CarGame() {
   const [hud, setHud] = useState({ speed: 0, gear: 'N', time: 0, cones: 0, over: false, offroad: false })
   const [result, setResult] = useState(null)
   const [best, setBest] = useState(readBest)
+  const stageRef = useRef(null)
+  const [size, setSize] = useState({ w: 420, h: 560 })
+  const [small, setSmall] = useState(() => window.matchMedia(SMALL).matches)
+  const full = small && phase !== 'ready'
+
+  useEffect(() => {
+    const mq = window.matchMedia(SMALL)
+    const on = () => setSmall(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+
+  // Lock the page behind the full-screen game so touching the pedals never scrolls it.
+  useEffect(() => {
+    if (!full) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [full])
+
+  // The canvas is as big as its box on screen, so it is sharp and never stretched.
+  useEffect(() => {
+    const el = stageRef.current
+    const measure = () => setSize({ w: Math.max(200, Math.round(el.clientWidth)), h: Math.max(240, Math.round(el.clientHeight)) })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const start = useCallback(() => {
     runRef.current = newRun(track)
@@ -116,9 +146,15 @@ export default function CarGame() {
   }
 
   useEffect(() => {
-    const ctx = canvasRef.current.getContext('2d')
+    const canvas = canvasRef.current
+    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    canvas.width = Math.round(size.w * dpr)
+    canvas.height = Math.round(size.h * dpr)
+    const ctx = canvas.getContext('2d')
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    const { w, h } = size
     const still = { offroad: false }
-    if (phase !== 'playing') { draw(ctx, track, runRef.current, still); return undefined }
+    if (phase !== 'playing') { draw(ctx, track, runRef.current, still, w, h); return undefined }
     let raf = 0
     let last = performance.now()
     let lastHud = 0
@@ -127,7 +163,7 @@ export default function CarGame() {
       last = now
       const run = stepRun(runRef.current, track, readInput(), dt)
       runRef.current = run
-      draw(ctx, track, run, { offroad: run.offroad })
+      draw(ctx, track, run, { offroad: run.offroad }, w, h)
       if (now - lastHud > 90) {
         lastHud = now
         setHud({
@@ -146,7 +182,7 @@ export default function CarGame() {
     }
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [phase, track])
+  }, [phase, track, size])
 
   useEffect(() => {
     const drive = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'w', 'a', 's', 'd'])
@@ -167,7 +203,10 @@ export default function CarGame() {
 
   // A pedal or arrow on the screen is "held" for as long as the finger stays on it.
   const hold = (name) => ({
-    onPointerDown: (e) => { e.currentTarget.setPointerCapture(e.pointerId); touch.current[name] = true },
+    onPointerDown: (e) => {
+      try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* the finger is tracked without capture */ }
+      touch.current[name] = true
+    },
     onPointerUp: () => { touch.current[name] = false },
     onPointerCancel: () => { touch.current[name] = false },
     onContextMenu: (e) => e.preventDefault(),
@@ -176,16 +215,17 @@ export default function CarGame() {
   return (
     <>
       <h1>Driving test</h1>
-      <div className="game">
+      <div className={`game${full ? ' full' : ''}`}>
         <div className="drive-hud">
           <div className={`speedo${hud.over ? ' over' : ''}`}><b>{hud.speed}</b><span>km/h</span></div>
           <div className="gear" aria-label="Gear">{hud.gear}</div>
           <div className="limit" aria-label="Speed limit 60"><span>60</span></div>
           <div className="drive-stats"><b>{fmt(hud.time)}</b><span>Cones hit: {hud.cones}</span></div>
+          {full && <button type="button" className="exit" aria-label="Leave the game" onClick={() => setPhase('ready')}>✕</button>}
         </div>
 
-        <div className="game-stage">
-          <canvas ref={canvasRef} width={W} height={H} aria-label="Driving test track" />
+        <div className="game-stage" ref={stageRef}>
+          <canvas ref={canvasRef} aria-label="Driving test track" />
           {phase !== 'playing' && (
             <div className="game-overlay">
               {phase === 'done' && result ? (
@@ -203,8 +243,8 @@ export default function CarGame() {
                 <>
                   <h2>Take the car round the track</h2>
                   <ul className="lines">
-                    <li>W / ↑ to accelerate, S / ↓ to brake and reverse</li>
-                    <li>A / D or ← / → to steer</li>
+                    <li>Hold Gas to go, Brake to stop and reverse</li>
+                    <li>Hold ◀ or ▶ to steer (keyboard: W A S D or arrows)</li>
                     <li>Weave through the cones, stay on the road</li>
                     <li>Keep to 60 km/h</li>
                   </ul>
