@@ -13,6 +13,7 @@ import Lessons from './components/admin/Lessons.jsx'
 import Attendance from './components/admin/Attendance.jsx'
 import AdminOffers from './components/admin/AdminOffers.jsx'
 import SiteLayout from './components/site/SiteLayout.jsx'
+import CarGame from './components/site/CarGame.jsx'
 import { ContactPage, HomePage, OffersPage, ServicesPage } from './components/site/Pages.jsx'
 import { ROLES } from './rules.js'
 
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/offers" element={<OffersPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/game" element={<CarGame />} />
       </Route>
       <Route path="/students-login" element={<GuestOnly><Login role={ROLES.CUSTOMER} /></GuestOnly>} />
       <Route path="/admin-login" element={<GuestOnly><Login role={ROLES.ADMIN} /></GuestOnly>} />

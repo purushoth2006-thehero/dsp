@@ -8,6 +8,7 @@ const MENU = [
   { to: '/services', label: 'Services' },
   { to: '/offers', label: 'Offers' },
   { to: '/contact', label: 'Contact Us' },
+  { to: '/game', label: 'Game' },
 ]
 
 // The public website: menu on the left; "Students Corner" and "Admin Login" (separate portals) at the top right.
