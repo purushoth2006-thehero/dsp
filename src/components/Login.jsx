@@ -83,7 +83,6 @@ export default function Login({ role }) {
         {!isAdmin && (
           <p className="hint">Your login is created by the school office. Please contact them if you need one.</p>
         )}
-        <p className="hint">{isAdmin ? <Link to="/students-login">Students Corner login →</Link> : <Link to="/admin-login">Admin login →</Link>}</p>
       </div>
     </main>
   )
