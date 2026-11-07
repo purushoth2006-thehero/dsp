@@ -297,6 +297,9 @@ tr.editing td { background: var(--editing); }
   .site-menu { flex-direction: row; align-items: center; align-self: start; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
   .site-menu a { white-space: nowrap; flex: none; }
   .site-brand span { font-size: 1rem; }
+  .site-top { flex-wrap: wrap; padding: 10px 14px; }
+  .site-top-actions { flex-wrap: wrap; flex: 1 1 100%; justify-content: flex-start; }
+  .student-corner { padding: 8px 12px; }
 }
 @media print { td.attendance-blank { height: 28px; min-width: 90px; } }
 
@@ -307,3 +310,10 @@ tr.editing td { background: var(--editing); }
 .offer-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .offer-list p { margin: 4px 0 0; color: var(--muted); }
 .login-card h2 { text-align: center; }
+
+/* Public site content: one point per line, bold and easy to read. */
+.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lines li { font-weight: 700; font-size: 1.05rem; line-height: 1.35; }
+.hero .lines { margin-top: 8px; font-size: 1.1rem; }
+.info-grid .lines { padding-left: 0; }
+.site-top .ghost { color: #fff; border-color: rgba(255,255,255,.5); }

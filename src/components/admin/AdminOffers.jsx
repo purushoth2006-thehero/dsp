@@ -53,7 +53,7 @@ export default function AdminOffers() {
           <Field label="Offer title">
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} required />
           </Field>
-          <Field label="Details (optional)">
+          <Field label="Details (optional, one point per line)">
             <textarea value={details} onChange={(e) => setDetails(e.target.value)} maxLength={300} rows={3} />
           </Field>
           {error && <p className="error" role="alert">{error}</p>}
