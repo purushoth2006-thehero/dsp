@@ -15,6 +15,8 @@ export class HttpError extends Error {
 
 const CUSTOMERS = 'customers'
 const APPOINTMENTS = 'appointments'
+const OFFERS = 'offers'
+const MAX_OFFERS = 20
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const str = (v) => (typeof v === 'string' ? v : '')
@@ -108,6 +110,27 @@ export function createService(store, { now = () => nowInZone() } = {}) {
   }
 
   return {
+    // Offers are shown on the public Offers page and managed by the admin.
+    async listOffers() {
+      return (await store.hgetall(OFFERS)).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    },
+
+    async addOffer(input) {
+      const title = str(input.title).trim().replace(/\s+/g, ' ')
+      const details = str(input.details).trim()
+      if (title.length < 2 || title.length > 80) throw new HttpError(400, 'Please enter an offer title (2 to 80 characters).')
+      if (details.length > 300) throw new HttpError(400, 'The details are too long (300 characters at most).')
+      if ((await store.hgetall(OFFERS)).length >= MAX_OFFERS) throw new HttpError(400, `You can keep at most ${MAX_OFFERS} offers. Remove an old one first.`)
+      const offer = { id: newId('o'), title, details, createdAt: new Date().toISOString() }
+      await store.hset(OFFERS, offer.id, offer)
+      return offer
+    },
+
+    async removeOffer(id) {
+      if (!(await store.hget(OFFERS, id))) throw new HttpError(404, 'That offer no longer exists.')
+      await store.hdel(OFFERS, id)
+    },
+
     getCustomer: (id) => store.hget(CUSTOMERS, id),
 
     // What the signed-in person is allowed to see: the admin sees everything, a customer only their own lessons.

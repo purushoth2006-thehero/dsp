@@ -79,9 +79,9 @@ a { color: var(--accent); }
 .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 .field label { font-size: 13px; color: var(--muted); }
 .field-hint { font-size: 12px; color: var(--muted-2); }
-input, select {
+input, select, textarea {
   width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px;
-  font-size: 14px; background: var(--surface); color: inherit;
+  font-size: 14px; font-family: inherit; background: var(--surface); color: inherit;
 }
 button { cursor: pointer; font-size: 14px; }
 button:disabled { opacity: .5; cursor: not-allowed; }
@@ -302,3 +302,8 @@ tr.editing td { background: var(--editing); }
 
 .captcha { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .captcha img { border: 1px solid var(--border, #d1d5db); border-radius: 6px; max-width: 100%; }
+
+.offer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.offer-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.offer-list p { margin: 4px 0 0; color: var(--muted); }
+.login-card h2 { text-align: center; }

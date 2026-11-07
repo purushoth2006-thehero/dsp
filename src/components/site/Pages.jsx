@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { request } from '../../api.js'
 import { BRAND, CLOSED_WEEKDAYS, PACKAGES, PLACES, TIME_SLOTS, formatTime } from '../../rules.js'
 
 export const PHONE = '7373515196'
@@ -9,15 +11,10 @@ export function HomePage() {
     <>
       <section className="hero">
         <h1>{BRAND}</h1>
-        <p>Learn to drive with patient, friendly training. Choose your package, pick your batch and book your classes online.</p>
-        <div className="hero-actions">
-          <a href={`tel:+91${PHONE}`} className="primary">Call {PHONE}</a>
-        </div>
+        <p>Learn to drive with friendly, experienced trainers. Pick your batch and book your classes online.</p>
       </section>
       <section className="info-grid">
-        <div className="card"><h2>{PACKAGES.diamond.lessons} or {PACKAGES.gold.lessons} lessons</h2><p>Diamond: {PACKAGES.diamond.lessons} lessons. Gold: {PACKAGES.gold.lessons} lessons.</p></div>
-        <div className="card"><h2>{TIME_SLOTS.length} batches a day</h2><p>{TIME_SLOTS.map(formatTime).join(', ')}.</p></div>
-        <div className="card"><h2>Book online</h2><p>Students sign in from the top right corner and book their own classes.</p></div>
+        <div className="card"><h2>Book online</h2><p>Students sign in at the Students Corner (top right) and book their own classes.</p></div>
       </section>
     </>
   )
@@ -31,6 +28,7 @@ export function ServicesPage() {
         <div className="card">
           <h2>Driving lessons</h2>
           <p>One-to-one practical training on the road with an experienced trainer.</p>
+          <p>Lady trainer available for one-to-one lessons.</p>
         </div>
         <div className="card">
           <h2>Packages</h2>
@@ -49,19 +47,46 @@ export function ServicesPage() {
           <ul>{PLACES.map((p) => <li key={p}>{p.replace(/_/g, ' ')}</li>)}</ul>
         </div>
         <div className="card">
+          <h2>RTO services</h2>
+          <ul>
+            <li>Learner's licence (LL) application</li>
+            <li>Driving licence test assistance</li>
+            <li>Licence renewal</li>
+            <li>Duplicate licence and address change</li>
+            <li>International Driving Permit</li>
+            <li>Vehicle RC transfer and renewal</li>
+          </ul>
+          <p className="muted">Call us for details and documents needed.</p>
+        </div>
+        <div className="card">
           <h2>Online booking</h2>
-          <p>Book, change or cancel your class for today or tomorrow after signing in from the top right corner.</p>
+          <p>Book, change or cancel your class for today or tomorrow after signing in at the Students Corner.</p>
         </div>
       </section>
     </>
   )
 }
 
-// Left empty on purpose; offers can be added here later.
+// Offers are added and removed by the admin (Admin > Offers).
 export function OffersPage() {
+  const [offers, setOffers] = useState(null) // null while loading
+  useEffect(() => {
+    let live = true
+    request('GET', '/api/offers').then((res) => { if (live) setOffers(res.ok ? res.data.offers : []) })
+    return () => { live = false }
+  }, [])
   return (
     <>
       <h1>Offers</h1>
+      {offers && offers.length === 0 && <p className="muted">No offers right now. Please check again soon.</p>}
+      <section className="info-grid">
+        {(offers ?? []).map((o) => (
+          <div className="card" key={o.id}>
+            <h2>{o.title}</h2>
+            {o.details && <p>{o.details}</p>}
+          </div>
+        ))}
+      </section>
     </>
   )
 }

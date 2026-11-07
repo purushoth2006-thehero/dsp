@@ -47,3 +47,36 @@ describe('captcha on sign-in', () => {
     expect(ok.cookie).toContain('dsp_session=')
   })
 })
+
+describe('offers', () => {
+  beforeEach(() => start())
+  afterEach(() => api.close())
+  const call = async (method, path, body, cookie = '') => {
+    const res = await fetch(api.base + path, { method, headers: { 'x-dsp': '1', 'content-type': 'application/json', cookie }, body: body === undefined ? undefined : JSON.stringify(body) })
+    let json = {}
+    try { json = await res.json() } catch { /* empty */ }
+    return { status: res.status, body: json }
+  }
+
+  it('anyone can read offers, only the admin can add or remove them', async () => {
+    const login = await post('/api/login', { role: 'admin', username: 'admin', password: 'admin123' })
+    const cookie = login.cookie
+    expect((await call('GET', '/api/offers')).body.offers).toEqual([])
+    expect((await call('POST', '/api/offers', { title: 'Diwali offer', details: '10% off' })).status).toBe(401)
+    const add = await call('POST', '/api/offers', { title: '  Diwali   offer ', details: '10% off' }, cookie)
+    expect(add.status).toBe(201)
+    expect(add.body.offer.title).toBe('Diwali offer')
+    expect((await call('GET', '/api/offers')).body.offers).toHaveLength(1)
+    expect((await call('DELETE', `/api/offers/${add.body.offer.id}`)).status).toBe(401)
+    expect((await call('DELETE', `/api/offers/${add.body.offer.id}`, undefined, cookie)).status).toBe(200)
+    expect((await call('GET', '/api/offers')).body.offers).toEqual([])
+    expect((await call('DELETE', '/api/offers/nope', undefined, cookie)).status).toBe(404)
+  })
+
+  it('rejects bad offers', async () => {
+    const { cookie } = await post('/api/login', { role: 'admin', username: 'admin', password: 'admin123' })
+    expect((await call('POST', '/api/offers', { title: 'x' }, cookie)).status).toBe(400)
+    expect((await call('POST', '/api/offers', { title: ['a', 'b'], details: {} }, cookie)).status).toBe(400)
+    expect((await call('POST', '/api/offers', { title: 'Fine', details: 'z'.repeat(301) }, cookie)).status).toBe(400)
+  })
+})

@@ -6,6 +6,6 @@ export const useApp = () => useContext(AppContext)
 
 // Where each kind of signed-in user lands.
 export const homeFor = (session) => {
-  if (!session) return '/login'
+  if (!session) return '/students-login'
   return session.role === 'admin' ? '/admin' : '/customer'
 }

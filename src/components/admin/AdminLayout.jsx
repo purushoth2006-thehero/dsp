@@ -6,6 +6,7 @@ const LINKS = [
   { to: '/admin/add', label: 'Add student' },
   { to: '/admin/lessons', label: 'Lessons' },
   { to: '/admin/attendance', label: 'Attendance' },
+  { to: '/admin/offers', label: 'Offers' },
 ]
 
 export default function AdminLayout() {

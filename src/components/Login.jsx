@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom'
 import ThemeToggle from '../ui/ThemeToggle.jsx'
 import { BRAND, ROLES } from '../rules.js'
 
-export default function Login() {
+// One sign-in page per portal: role is ROLES.CUSTOMER (Students Corner) or ROLES.ADMIN.
+export default function Login({ role }) {
   const { loginAdmin, loginCustomer, serverError } = useApp()
   const [captcha, setCaptcha] = useState(null) // { id, image }; null when the server does not ask for one
   const [captchaText, setCaptchaText] = useState('')
@@ -20,17 +21,10 @@ export default function Login() {
     request('GET', '/api/captcha').then((res) => { if (live && res.ok && res.data.id) setCaptcha(res.data) })
     return () => { live = false }
   }, [])
-  const [role, setRole] = useState(ROLES.CUSTOMER)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-
-  const switchRole = (next) => {
-    setRole(next)
-    setPassword('')
-    setError('')
-  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -55,14 +49,7 @@ export default function Login() {
 
         {serverError && <p className="banner" role="alert">{serverError}</p>}
 
-        <div className="tabs" role="group" aria-label="Sign in as">
-          <button type="button" className={!isAdmin ? 'active' : ''} aria-pressed={!isAdmin} onClick={() => switchRole(ROLES.CUSTOMER)}>
-            Student
-          </button>
-          <button type="button" className={isAdmin ? 'active' : ''} aria-pressed={isAdmin} onClick={() => switchRole(ROLES.ADMIN)}>
-            Admin
-          </button>
-        </div>
+        <h2>{isAdmin ? 'Admin Login' : 'Students Corner'}</h2>
 
         <form className="form" onSubmit={submit}>
           <Field label={isAdmin ? 'Username' : 'Mobile number'}>
@@ -96,6 +83,7 @@ export default function Login() {
         {!isAdmin && (
           <p className="hint">Your login is created by the school office. Please contact them if you need one.</p>
         )}
+        <p className="hint">{isAdmin ? <Link to="/students-login">Students Corner login →</Link> : <Link to="/admin-login">Admin login →</Link>}</p>
       </div>
     </main>
   )

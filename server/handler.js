@@ -211,13 +211,29 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
       return send(res, 200, { ok: true }, { 'set-cookie': clearCookie(req) })
     }
 
+    let match
+    // Offers: anyone may read them (public Offers page); only the admin changes them.
+    if (path === '/api/offers') {
+      if (method === 'GET') return send(res, 200, { offers: await service.listOffers() }, { 'cache-control': 'no-store' })
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
+      await requireAdmin(req)
+      return send(res, 201, { offer: await service.addOffer(await readJson(req)) })
+    }
+    match = path.match(/^\/api\/offers\/([\w-]+)$/)
+    if (match) {
+      if (method !== 'DELETE') throw new HttpError(405, 'Method not allowed.')
+      await requireAdmin(req)
+      await service.removeOffer(match[1])
+      return send(res, 200, { ok: true })
+    }
+
     if (path === '/api/customers') {
       if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
       await requireAdmin(req)
       return send(res, 201, { customer: await service.addCustomer(await readJson(req)) })
     }
 
-    let match = path.match(/^\/api\/customers\/([\w-]+)$/)
+    match = path.match(/^\/api\/customers\/([\w-]+)$/)
     if (match) {
       await requireAdmin(req)
       if (method === 'PUT') return send(res, 200, { customer: await service.updateCustomer(match[1], await readJson(req)) })

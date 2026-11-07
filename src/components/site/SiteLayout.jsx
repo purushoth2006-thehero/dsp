@@ -10,7 +10,7 @@ const MENU = [
   { to: '/contact', label: 'Contact Us' },
 ]
 
-// The public website: menu on the left, "Student Corner" (the login) at the top right.
+// The public website: menu on the left; "Students Corner" and "Admin Login" (separate portals) at the top right.
 export default function SiteLayout() {
   const { session } = useApp()
   return (
@@ -22,9 +22,14 @@ export default function SiteLayout() {
         </Link>
         <div className="site-top-actions">
           <ThemeToggle />
-          <Link to={session ? homeFor(session) : '/login'} className="primary student-corner">
-            {session ? 'My account' : 'Student Corner'}
-          </Link>
+          {session ? (
+            <Link to={homeFor(session)} className="primary student-corner">My account</Link>
+          ) : (
+            <>
+              <Link to="/students-login" className="primary student-corner">Students Corner</Link>
+              <Link to="/admin-login" className="ghost student-corner">Admin Login</Link>
+            </>
+          )}
         </div>
       </header>
 
