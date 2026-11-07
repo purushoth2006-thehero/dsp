@@ -10,12 +10,16 @@ export function HomePage() {
   return (
     <>
       <section className="hero">
-        <h1>{BRAND}</h1>
-        <ul className="lines">
+        <div className="hero-head">
+          <span className="l-plate" aria-hidden="true">L</span>
+          <h1>{BRAND}</h1>
+        </div>
+        <ul className="signs">
           <li>Friendly, experienced trainers</li>
           <li>Pick your batch</li>
           <li>Book your classes online</li>
         </ul>
+        <div className="lane" aria-hidden="true" />
       </section>
       <section className="info-grid">
         <div className="card">
@@ -35,7 +39,7 @@ export function ServicesPage() {
     <>
       <h1>Services</h1>
       <section className="info-grid">
-        <div className="card">
+        <div className="card wide">
           <h2>Driving lessons</h2>
           <ul className="lines">
             <li>One-to-one practical training on the road</li>
@@ -46,8 +50,8 @@ export function ServicesPage() {
         <div className="card">
           <h2>Packages</h2>
           <ul className="lines">
-            <li>Diamond: {PACKAGES.diamond.lessons} lessons</li>
-            <li>Gold: {PACKAGES.gold.lessons} lessons</li>
+            <li className="tier-diamond">Diamond: {PACKAGES.diamond.lessons} lessons</li>
+            <li className="tier-gold">Gold: {PACKAGES.gold.lessons} lessons</li>
           </ul>
         </div>
         <div className="card">
@@ -100,7 +104,7 @@ export function OffersPage() {
       {offers && offers.length === 0 && <p className="muted">No offers right now. Please check again soon.</p>}
       <section className="info-grid">
         {(offers ?? []).map((o) => (
-          <div className="card" key={o.id}>
+          <div className="card offer" key={o.id}>
             <h2>{o.title}</h2>
             {o.details && (
               <ul className="lines">{o.details.split(/\r?\n/).filter(Boolean).map((line, i) => <li key={i}>{line}</li>)}</ul>
