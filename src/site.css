@@ -81,20 +81,35 @@
   .hero { padding-bottom: 52px; }
 }
 
-/* car game */
-.game { max-width: 380px; }
-.game-bar { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
-.game-stage { position: relative; border-radius: 10px; overflow: hidden; border: 3px solid var(--tarmac); touch-action: manipulation; }
+/* driving game */
+.game { max-width: 440px; }
+.game-stage { position: relative; border-radius: 10px; overflow: hidden; border: 3px solid var(--tarmac); touch-action: none; }
 .game-stage canvas { display: block; width: 100%; height: auto; }
 .game-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  padding: 20px; background: rgba(20, 24, 28, .82); color: #fff; text-align: center;
+  padding: 20px; background: rgba(20, 24, 28, .86); color: #fff; text-align: center;
 }
 .game-overlay h2 { color: #fff; margin: 0; }
 .game-overlay p { margin: 0; }
+.game-overlay .score { font-size: 1.3rem; }
 .game-overlay .lines li { color: #fff; justify-content: center; font-size: 1rem; }
 .game-overlay .lines li::before { display: none; }
 .game-overlay .primary { margin: 6px 0 0; padding: 11px 28px; background: var(--lane); color: #1d2227; font-weight: 700; }
-.game-pad { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-.game-pad .ghost { padding: 14px; font-size: 1.05rem; font-weight: 700; }
 .game-overlay .primary:hover:not(:disabled) { background: #ffd23f; }
+
+.drive-hud { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; background: var(--tarmac); color: #fff; padding: 8px 12px; border-radius: 10px; }
+.speedo { display: flex; align-items: baseline; gap: 4px; min-width: 92px; }
+.speedo b { font-family: var(--head); font-size: 2.4rem; line-height: 1; font-weight: 800; min-width: 3ch; text-align: right; }
+.speedo span { font-size: .8rem; opacity: .8; }
+.speedo.over b { color: #ff5a4f; }
+.gear { width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid var(--lane); border-radius: 6px; font-weight: 800; color: var(--lane); }
+.limit { width: 38px; height: 38px; border-radius: 50%; border: 4px solid #d62828; background: #fff; display: grid; place-items: center; color: #111; font-weight: 800; font-size: .85rem; }
+.drive-stats { margin-left: auto; text-align: right; display: grid; font-size: .85rem; }
+.drive-stats b { font-family: var(--head); font-size: 1.5rem; font-weight: 800; }
+
+.drive-pad { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.pad-steer, .pad-pedals { display: flex; gap: 10px; }
+.drive-pad .ghost { min-width: 72px; min-height: 68px; font-size: 1.15rem; font-weight: 800; touch-action: none; }
+.drive-pad .ghost:active { background: var(--none-bg); }
+.pad-pedals .brake { border-color: #d62828; color: #d62828; }
+.pad-pedals .gas { border-color: var(--sign); color: var(--sign); min-width: 92px; }

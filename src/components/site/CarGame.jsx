@@ -1,139 +1,230 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { CAR_H, LANES, PLAYER_Y, moveLane, newGame, scoreOf, step } from '../../game.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CAR, ROAD_HALF, SPEED_LIMIT, buildTrack, drivingScore, kmh, newRun, stepRun } from '../../drive.js'
 
-const W = 360
+const W = 420
 const H = 560
-const ROAD_X = 30
-const ROAD_W = W - ROAD_X * 2
-const LANE_W = ROAD_W / LANES
-const CAR_COLORS = ['#2f6fd6', '#f2f2f2', '#2b3036', '#e08a00', '#0e7c47']
-const BEST_KEY = 'dsp-car-game-best'
+const BEST_KEY = 'dsp-drive-best-lap'
 
 const readBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0 } catch { return 0 } }
-const saveBest = (n) => { try { localStorage.setItem(BEST_KEY, String(n)) } catch { /* private mode: best score is not kept */ } }
+const saveBest = (t) => { try { localStorage.setItem(BEST_KEY, String(t)) } catch { /* private mode: the best time is not kept */ } }
+const fmt = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`
 
-function drawCar(ctx, cx, y, color, plate) {
-  const w = LANE_W * 0.56
-  const h = CAR_H * H
-  const x = cx - w / 2
-  ctx.fillStyle = 'rgba(0,0,0,.25)'
-  ctx.fillRect(x + 3, y + 4, w, h)
-  ctx.fillStyle = color
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, 9); ctx.fill()
-  ctx.fillStyle = 'rgba(20,28,36,.85)' // windscreen and rear window
-  ctx.beginPath(); ctx.roundRect(x + 5, y + h * 0.2, w - 10, h * 0.2, 4); ctx.fill()
-  ctx.beginPath(); ctx.roundRect(x + 6, y + h * 0.66, w - 12, h * 0.14, 4); ctx.fill()
-  ctx.fillStyle = '#ffd23f' // headlights
-  ctx.fillRect(x + 3, y + 2, 7, 4); ctx.fillRect(x + w - 10, y + 2, 7, 4)
-  if (plate) { // the L-plate on the bonnet
-    ctx.fillStyle = '#fff'; ctx.fillRect(cx - 8, y + h * 0.43, 16, 16)
-    ctx.fillStyle = '#b91c22'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('L', cx, y + h * 0.43 + 13)
-  }
+function drawCar(ctx, car) {
+  ctx.save()
+  ctx.translate(car.x, car.y)
+  ctx.rotate(car.heading)
+  const L = CAR.length
+  const Wd = CAR.width
+  ctx.fillStyle = 'rgba(0,0,0,.3)'
+  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.25, -L / 2 + 0.3, Wd, L, 0.5); ctx.fill()
+  ctx.fillStyle = '#111' // wheels; the front pair turns with the steering
+  const wheel = (x, y, angle) => { ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillRect(-0.18, -0.45, 0.36, 0.9); ctx.restore() }
+  const turn = car.steer * 0.5
+  wheel(-Wd / 2, -L * 0.3, turn); wheel(Wd / 2, -L * 0.3, turn); wheel(-Wd / 2, L * 0.3, 0); wheel(Wd / 2, L * 0.3, 0)
+  ctx.fillStyle = '#b91c22' // body
+  ctx.beginPath(); ctx.roundRect(-Wd / 2, -L / 2, Wd, L, 0.55); ctx.fill()
+  ctx.fillStyle = '#1a232c' // windscreen and rear window
+  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.2, -L * 0.2, Wd - 0.4, L * 0.17, 0.25); ctx.fill()
+  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.25, L * 0.17, Wd - 0.5, L * 0.12, 0.25); ctx.fill()
+  ctx.fillStyle = '#d63a40' // roof
+  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.2, -L * 0.03, Wd - 0.4, L * 0.19, 0.2); ctx.fill()
+  ctx.fillStyle = '#fff3b0' // headlights
+  ctx.fillRect(-Wd / 2 + 0.12, -L / 2 + 0.05, 0.4, 0.2); ctx.fillRect(Wd / 2 - 0.52, -L / 2 + 0.05, 0.4, 0.2)
+  ctx.fillStyle = car.braking ? '#ff2b2b' : '#7a1212' // brake lights
+  ctx.fillRect(-Wd / 2 + 0.12, L / 2 - 0.25, 0.45, 0.18); ctx.fillRect(Wd / 2 - 0.57, L / 2 - 0.25, 0.45, 0.18)
+  ctx.restore()
 }
 
-function draw(ctx, g, carX) {
-  ctx.fillStyle = '#1c7a43' // grass
+function draw(ctx, track, run, hud) {
+  const { car } = run
+  const scale = 8.5 - Math.min(Math.abs(car.v), 30) * 0.1 // zoom out a little at speed
+  ctx.fillStyle = '#2d8a4e'
   ctx.fillRect(0, 0, W, H)
-  ctx.fillStyle = '#2b3036' // tarmac
-  ctx.fillRect(ROAD_X, 0, ROAD_W, H)
-  ctx.fillStyle = '#fff' // road edges
-  ctx.fillRect(ROAD_X - 4, 0, 4, H); ctx.fillRect(ROAD_X + ROAD_W, 0, 4, H)
-  ctx.fillStyle = '#ffc400' // dashed lane lines that scroll as you drive
-  const dash = 36
-  const offset = (g.distance * H) % (dash * 2)
-  for (let i = 1; i < LANES; i += 1) {
-    for (let y = -dash * 2 + offset; y < H; y += dash * 2) ctx.fillRect(ROAD_X + i * LANE_W - 2, y, 4, dash)
-  }
-  for (const e of g.enemies) drawCar(ctx, ROAD_X + (e.lane + 0.5) * LANE_W, e.y * H, CAR_COLORS[e.color % CAR_COLORS.length], false)
-  drawCar(ctx, carX, PLAYER_Y * H, '#b91c22', true)
+  ctx.save()
+  ctx.translate(W / 2, H * 0.7)
+  ctx.scale(scale, scale)
+  ctx.rotate(-car.heading) // the world turns, so the car always points up the screen
+  ctx.translate(-car.x, -car.y)
+
+  ctx.fillStyle = '#1f6e3c'
+  for (const b of track.bushes) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill() }
+
+  const path = new Path2D()
+  track.pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)))
+  path.closePath()
+  ctx.lineJoin = 'round'
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = ROAD_HALF * 2 + 0.7; ctx.stroke(path) // edge lines
+  ctx.strokeStyle = '#2b3036'; ctx.lineWidth = ROAD_HALF * 2 - 0.1; ctx.stroke(path) // tarmac
+  ctx.strokeStyle = '#ffc400'; ctx.lineWidth = 0.22; ctx.setLineDash([3, 3]); ctx.stroke(path); ctx.setLineDash([]) // centre line
+
+  // start / finish line
+  const a = track.pts[0]
+  ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(track.start.heading)
+  for (let i = 0; i < 9; i += 1) { ctx.fillStyle = i % 2 ? '#fff' : '#111'; ctx.fillRect(-ROAD_HALF + i, -0.5, 1, 1) }
+  ctx.restore()
+
+  track.cones.forEach((c, i) => {
+    if (run.hit.includes(i)) return
+    ctx.fillStyle = '#ff7a00'; ctx.beginPath(); ctx.arc(c.x, c.y, 0.45, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(c.x, c.y, 0.2, 0, Math.PI * 2); ctx.fill()
+  })
+  drawCar(ctx, car)
+  ctx.restore()
+
+  // mini map
+  const mx = W - 96; const my = 10; const ms = 86
+  const xs = track.pts.map((p) => p.x); const ys = track.pts.map((p) => p.y)
+  const minX = Math.min(...xs); const minY = Math.min(...ys)
+  const k = ms / Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY)
+  ctx.fillStyle = 'rgba(20,24,28,.55)'; ctx.fillRect(mx - 4, my - 4, ms + 8, ms + 8)
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath()
+  track.pts.forEach((p, i) => (i ? ctx.lineTo(mx + (p.x - minX) * k, my + (p.y - minY) * k) : ctx.moveTo(mx + (p.x - minX) * k, my + (p.y - minY) * k)))
+  ctx.closePath(); ctx.stroke()
+  ctx.fillStyle = '#ffc400'; ctx.beginPath(); ctx.arc(mx + (car.x - minX) * k, my + (car.y - minY) * k, 3.5, 0, Math.PI * 2); ctx.fill()
+
+  if (hud.offroad) { ctx.fillStyle = 'rgba(255,196,0,.95)'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Off the road: slow down and steer back', W / 2, H - 20) }
 }
 
-// A small lane-dodging game: steer between the lanes and keep clear of the other cars.
+// A driving test: take the car once round the track, weave through the cones, stay on the road and keep to 60 km/h.
 export default function CarGame() {
+  const track = useMemo(() => buildTrack(), [])
   const canvasRef = useRef(null)
-  const gameRef = useRef(newGame())
-  const carXRef = useRef(ROAD_X + 1.5 * LANE_W)
-  const rafRef = useRef(0)
-  const [phase, setPhase] = useState('ready') // ready | playing | over
-  const [score, setScore] = useState(0)
+  const runRef = useRef(newRun(track))
+  const keys = useRef(new Set())
+  const touch = useRef({ left: false, right: false, gas: false, brake: false })
+  const [phase, setPhase] = useState('ready') // ready | playing | done
+  const [hud, setHud] = useState({ speed: 0, gear: 'N', time: 0, cones: 0, over: false, offroad: false })
+  const [result, setResult] = useState(null)
   const [best, setBest] = useState(readBest)
 
-  const steer = useCallback((dir) => { gameRef.current = moveLane(gameRef.current, dir) }, [])
-
   const start = useCallback(() => {
-    gameRef.current = newGame()
-    carXRef.current = ROAD_X + 1.5 * LANE_W
-    setScore(0)
+    runRef.current = newRun(track)
+    setResult(null)
     setPhase('playing')
-  }, [])
+  }, [track])
 
-  // The game loop runs only while playing.
+  const readInput = () => {
+    const k = keys.current
+    const t = touch.current
+    const left = k.has('ArrowLeft') || k.has('a') || t.left
+    const right = k.has('ArrowRight') || k.has('d') || t.right
+    return {
+      throttle: k.has('ArrowUp') || k.has('w') || t.gas ? 1 : 0,
+      brake: k.has('ArrowDown') || k.has('s') || k.has(' ') || t.brake ? 1 : 0,
+      steer: (right ? 1 : 0) - (left ? 1 : 0),
+    }
+  }
+
   useEffect(() => {
     const ctx = canvasRef.current.getContext('2d')
-    if (phase !== 'playing') { draw(ctx, gameRef.current, carXRef.current); return undefined }
+    const still = { offroad: false }
+    if (phase !== 'playing') { draw(ctx, track, runRef.current, still); return undefined }
+    let raf = 0
     let last = performance.now()
+    let lastHud = 0
     const frame = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
-      const g = step(gameRef.current, dt)
-      gameRef.current = g
-      const target = ROAD_X + (g.lane + 0.5) * LANE_W
-      carXRef.current += (target - carXRef.current) * Math.min(1, dt * 14) // glide into the lane
-      draw(ctx, g, carXRef.current)
-      setScore(scoreOf(g))
-      if (g.over) {
-        setPhase('over')
-        setBest((b) => { const next = Math.max(b, scoreOf(g)); saveBest(next); return next })
+      const run = stepRun(runRef.current, track, readInput(), dt)
+      runRef.current = run
+      draw(ctx, track, run, { offroad: run.offroad })
+      if (now - lastHud > 90) {
+        lastHud = now
+        setHud({
+          speed: kmh(run.car.v), gear: run.car.v > 0.5 ? 'D' : run.car.v < -0.5 ? 'R' : 'N',
+          time: run.time, cones: run.hit.length, over: Math.abs(run.car.v) > SPEED_LIMIT + 0.5,
+        })
+      }
+      if (run.finished) {
+        const score = drivingScore(run)
+        setResult({ time: run.time, cones: run.hit.length, grass: run.offroadTime, speeding: run.speedingTime, score })
+        setBest((b) => { const next = b === 0 ? run.time : Math.min(b, run.time); saveBest(next); return next })
+        setPhase('done')
         return
       }
-      rafRef.current = requestAnimationFrame(frame)
+      raf = requestAnimationFrame(frame)
     }
-    rafRef.current = requestAnimationFrame(frame)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [phase])
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [phase, track])
 
   useEffect(() => {
-    const onKey = (e) => {
-      if (['ArrowLeft', 'a', 'A'].includes(e.key)) { steer(-1); e.preventDefault() }
-      else if (['ArrowRight', 'd', 'D'].includes(e.key)) { steer(1); e.preventDefault() }
-      else if ((e.key === ' ' || e.key === 'Enter') && phase !== 'playing' && !(e.target instanceof HTMLButtonElement)) { start(); e.preventDefault() }
+    const drive = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'w', 'a', 's', 'd'])
+    const normal = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key)
+    const down = (e) => {
+      const key = normal(e)
+      if (!drive.has(key)) { if (e.key === 'Enter' && phase !== 'playing' && !(e.target instanceof HTMLButtonElement)) start(); return }
+      if (phase === 'playing') e.preventDefault()
+      keys.current.add(key)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [phase, start, steer])
+    const up = (e) => keys.current.delete(normal(e))
+    const clear = () => keys.current.clear()
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', clear)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', clear) }
+  }, [phase, start])
 
-  // Tap the left or right half of the road to steer.
-  const onPointer = (e) => {
-    if (phase !== 'playing') return
-    const rect = e.currentTarget.getBoundingClientRect()
-    steer(e.clientX - rect.left < rect.width / 2 ? -1 : 1)
-  }
+  // A pedal or arrow on the screen is "held" for as long as the finger stays on it.
+  const hold = (name) => ({
+    onPointerDown: (e) => { e.currentTarget.setPointerCapture(e.pointerId); touch.current[name] = true },
+    onPointerUp: () => { touch.current[name] = false },
+    onPointerCancel: () => { touch.current[name] = false },
+    onContextMenu: (e) => e.preventDefault(),
+  })
 
   return (
     <>
-      <h1>Car game</h1>
+      <h1>Driving test</h1>
       <div className="game">
-        <div className="game-bar">
-          <span>Distance: <b>{score} m</b></span>
-          <span>Best: <b>{Math.max(best, score)} m</b></span>
+        <div className="drive-hud">
+          <div className={`speedo${hud.over ? ' over' : ''}`}><b>{hud.speed}</b><span>km/h</span></div>
+          <div className="gear" aria-label="Gear">{hud.gear}</div>
+          <div className="limit" aria-label="Speed limit 60"><span>60</span></div>
+          <div className="drive-stats"><b>{fmt(hud.time)}</b><span>Cones hit: {hud.cones}</span></div>
         </div>
+
         <div className="game-stage">
-          <canvas ref={canvasRef} width={W} height={H} onPointerDown={onPointer} aria-label="Car game road" />
+          <canvas ref={canvasRef} width={W} height={H} aria-label="Driving test track" />
           {phase !== 'playing' && (
             <div className="game-overlay">
-              <h2>{phase === 'over' ? 'Crash!' : 'Keep clear of the traffic'}</h2>
-              {phase === 'over' && <p>You drove {score} m.</p>}
-              <ul className="lines">
-                <li>Arrow keys or A / D to change lane</li>
-                <li>On a phone, tap left or right</li>
-              </ul>
-              <button type="button" className="primary" onClick={start}>{phase === 'over' ? 'Play again' : 'Start'}</button>
+              {phase === 'done' && result ? (
+                <>
+                  <h2>Test complete</h2>
+                  <ul className="lines">
+                    <li>Time: {fmt(result.time)}{best === result.time ? ' (best)' : ''}</li>
+                    <li>Cones hit: {result.cones}</li>
+                    <li>On the grass: {result.grass.toFixed(1)} s</li>
+                    <li>Over 60 km/h: {result.speeding.toFixed(1)} s</li>
+                  </ul>
+                  <p className="score">Driving score: <b>{result.score}</b> / 100</p>
+                </>
+              ) : (
+                <>
+                  <h2>Take the car round the track</h2>
+                  <ul className="lines">
+                    <li>W / ↑ to accelerate, S / ↓ to brake and reverse</li>
+                    <li>A / D or ← / → to steer</li>
+                    <li>Weave through the cones, stay on the road</li>
+                    <li>Keep to 60 km/h</li>
+                  </ul>
+                  {best > 0 && <p>Best time: {fmt(best)}</p>}
+                </>
+              )}
+              <button type="button" className="primary" onClick={start}>{phase === 'done' ? 'Drive again' : 'Start engine'}</button>
             </div>
           )}
         </div>
-        <div className="game-pad">
-          <button type="button" className="ghost" onClick={() => steer(-1)} aria-label="Move left">◀ Left</button>
-          <button type="button" className="ghost" onClick={() => steer(1)} aria-label="Move right">Right ▶</button>
+
+        <div className="drive-pad">
+          <div className="pad-steer">
+            <button type="button" className="ghost" aria-label="Steer left" {...hold('left')}>◀</button>
+            <button type="button" className="ghost" aria-label="Steer right" {...hold('right')}>▶</button>
+          </div>
+          <div className="pad-pedals">
+            <button type="button" className="ghost brake" aria-label="Brake" {...hold('brake')}>Brake</button>
+            <button type="button" className="ghost gas" aria-label="Accelerate" {...hold('gas')}>Gas</button>
+          </div>
         </div>
       </div>
     </>
