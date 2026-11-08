@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const MAX = 120 // degrees of turn from the middle to full lock
 
@@ -21,6 +21,20 @@ export default function SteeringWheel({ onChange }) {
     setRot(v)
     onChange(v / MAX)
   }
+  // If the finger is lifted anywhere (even outside the wheel, or the touch is cancelled), the wheel must let go.
+  useEffect(() => {
+    const release = () => {
+      if (!drag.current) return
+      drag.current = null
+      setHeld(false)
+      setRot(0)
+      onChange(null)
+    }
+    window.addEventListener('pointerup', release)
+    window.addEventListener('pointercancel', release)
+    window.addEventListener('blur', release)
+    return () => { window.removeEventListener('pointerup', release); window.removeEventListener('pointercancel', release); window.removeEventListener('blur', release) }
+  }, [onChange])
   const down = (e) => {
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* tracked without capture */ }
     drag.current = { from: pointerAngle(e), base: rot }
@@ -48,6 +62,7 @@ export default function SteeringWheel({ onChange }) {
       onPointerMove={move}
       onPointerUp={up}
       onPointerCancel={up}
+      onLostPointerCapture={up}
       onContextMenu={(e) => e.preventDefault()}
     >
       <svg viewBox="-100 -100 200 200" style={{ transform: `rotate(${rot}deg)` }}>

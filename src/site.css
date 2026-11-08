@@ -140,9 +140,9 @@
   background: rgba(20, 24, 28, .55); border: 2px solid rgba(255, 255, 255, .6); -webkit-touch-callout: none;
 }
 .game.full .pad-pedals { gap: 8px; }
-.game.full .wheel { width: 132px; height: 132px; pointer-events: auto; opacity: .92; }
-.game.full .pad-pedals .brake { min-width: 76px; border-color: #ff6b61; color: #ff8a82; }
-.game.full .pad-pedals .gas { border-color: #4ade80; color: #86efac; min-width: 88px; min-height: 100px; }
+.game.full .wheel { width: 108px; height: 108px; pointer-events: auto; opacity: .92; }
+.game.full .pad-pedals .brake { min-width: 62px; border-color: #ff6b61; color: #ff8a82; }
+.game.full .pad-pedals .gas { border-color: #4ade80; color: #86efac; min-width: 72px; min-height: 100px; }
 .drive-hud .exit { margin-left: 8px; background: transparent; color: #fff; border: 2px solid rgba(255, 255, 255, .6); border-radius: 8px; width: 38px; height: 38px; padding: 0; font-size: 1.1rem; }
 .game-overlay { z-index: 1; }
 .game.full .game-overlay { padding-bottom: 150px; }
@@ -213,3 +213,23 @@
 .social-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .social-btn.ghost { background: transparent; color: var(--tarmac) !important; border: 2px solid var(--tarmac); }
 .report-actions .social-btn.primary { background: var(--sign); }
+.gear.shift { background: #ffc400; color: #1d2227; animation: blink .5s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .55; } }
+.game-note { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 2; background: rgba(20, 24, 28, .8); color: #fff; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: .9rem; white-space: nowrap; pointer-events: none; }
+.game-note.warn { top: 96px; background: #ffc400; color: #1d2227; }
+.gear-stick { display: grid; justify-items: center; align-self: flex-end; gap: 6px; user-select: none; -webkit-user-select: none; }
+.gear-stick output { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; border: 2px solid var(--lane); color: var(--lane); background: rgba(20, 24, 28, .7); font-family: var(--head); font-weight: 800; font-size: 1.5rem; }
+.drive-pad .gear-stick .ghost { min-width: 56px; min-height: 52px; padding: 0; font-size: 1.1rem; }
+.game.full .gear-stick .ghost { min-height: 50px; min-width: 54px; }
+.game.full .drive-pad { gap: 6px; }
+.game.full .gear-stick { align-self: flex-end; }
+@media (max-width: 380px) {
+  .game.full .wheel { width: 82px; height: 82px; }
+  .game.full .gear-stick .ghost { min-width: 46px; min-height: 44px; font-size: .95rem; }
+  .game.full .gear-stick output { width: 38px; height: 38px; }
+  .game.full .drive-pad { padding-left: 8px; padding-right: 8px; }
+  .game.full .pad-pedals { gap: 5px; }
+  .game.full .pad-pedals .brake { min-width: 54px; font-size: .9rem; }
+  .game.full .pad-pedals .gas { min-width: 60px; font-size: .9rem; }
+  .game.full .drive-pad .ghost { padding: 0 4px; }
+}

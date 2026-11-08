@@ -30,29 +30,59 @@ function drawWeather(ctx, weather, W, H, time, light) {
 
 // ---------- the car seen from above ----------
 
-export function drawCarTop(ctx, car, bodyColor = '#b91c22', roofColor = '#d63a40') {
+export function drawCarTop(ctx, car, bodyColor = '#c8202a', roofColor) {
+  const L = CAR.length
+  const Wd = CAR.width
+  const hw = Wd / 2
+  const hl = L / 2
   ctx.save()
   ctx.translate(car.x, car.y)
   ctx.rotate(car.heading)
-  const L = CAR.length
-  const Wd = CAR.width
-  ctx.fillStyle = 'rgba(0,0,0,.3)'
-  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.25, -L / 2 + 0.3, Wd, L, 0.5); ctx.fill()
-  ctx.fillStyle = '#111'
-  const wheel = (x, y, angle) => { ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillRect(-0.18, -0.45, 0.36, 0.9); ctx.restore() }
+  ctx.fillStyle = 'rgba(0,0,0,.32)'
+  ctx.beginPath(); ctx.roundRect(-hw + 0.2, -hl + 0.3, Wd, L, 0.7); ctx.fill()
+  // tyres: the front pair turns with the steering
+  ctx.fillStyle = '#0c0d0f'
+  const tyre = (x, y, a) => { ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.beginPath(); ctx.roundRect(-0.2, -0.5, 0.4, 1, 0.1); ctx.fill(); ctx.restore() }
   const turn = (car.steer ?? 0) * 0.5
-  wheel(-Wd / 2, -L * 0.3, turn); wheel(Wd / 2, -L * 0.3, turn); wheel(-Wd / 2, L * 0.3, 0); wheel(Wd / 2, L * 0.3, 0)
+  tyre(-hw - 0.02, -hl + 0.95, turn); tyre(hw + 0.02, -hl + 0.95, turn); tyre(-hw - 0.02, hl - 0.85, 0); tyre(hw + 0.02, hl - 0.85, 0)
+  // side mirrors
   ctx.fillStyle = bodyColor
-  ctx.beginPath(); ctx.roundRect(-Wd / 2, -L / 2, Wd, L, 0.55); ctx.fill()
-  ctx.fillStyle = '#1a232c'
-  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.2, -L * 0.2, Wd - 0.4, L * 0.17, 0.25); ctx.fill()
-  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.25, L * 0.17, Wd - 0.5, L * 0.12, 0.25); ctx.fill()
-  ctx.fillStyle = roofColor
-  ctx.beginPath(); ctx.roundRect(-Wd / 2 + 0.2, -L * 0.03, Wd - 0.4, L * 0.19, 0.2); ctx.fill()
-  ctx.fillStyle = '#fff3b0'
-  ctx.fillRect(-Wd / 2 + 0.12, -L / 2 + 0.05, 0.4, 0.2); ctx.fillRect(Wd / 2 - 0.52, -L / 2 + 0.05, 0.4, 0.2)
-  ctx.fillStyle = car.braking ? '#ff2b2b' : '#7a1212'
-  ctx.fillRect(-Wd / 2 + 0.12, L / 2 - 0.25, 0.45, 0.18); ctx.fillRect(Wd / 2 - 0.57, L / 2 - 0.25, 0.45, 0.18)
+  ctx.beginPath(); ctx.roundRect(-hw - 0.22, -hl + 1.5, 0.28, 0.2, 0.06); ctx.roundRect(hw - 0.06, -hl + 1.5, 0.28, 0.2, 0.06); ctx.fill()
+  // body: narrow nose, wider middle, short tail
+  const body = new Path2D()
+  body.moveTo(-hw * 0.72, -hl)
+  body.quadraticCurveTo(0, -hl - 0.12, hw * 0.72, -hl)
+  body.bezierCurveTo(hw * 0.98, -hl + 0.3, hw, -hl + 0.9, hw, -hl + 1.5)
+  body.lineTo(hw, hl - 0.8)
+  body.bezierCurveTo(hw, hl - 0.25, hw * 0.88, hl - 0.05, hw * 0.7, hl)
+  body.quadraticCurveTo(0, hl + 0.08, -hw * 0.7, hl)
+  body.bezierCurveTo(-hw * 0.88, hl - 0.05, -hw, hl - 0.25, -hw, hl - 0.8)
+  body.lineTo(-hw, -hl + 1.5)
+  body.bezierCurveTo(-hw, -hl + 0.9, -hw * 0.98, -hl + 0.3, -hw * 0.72, -hl)
+  body.closePath()
+  const paint = ctx.createLinearGradient(-hw, 0, hw, 0)
+  paint.addColorStop(0, shade(bodyColor, 0.72)); paint.addColorStop(0.5, shade(bodyColor, 1.18)); paint.addColorStop(1, shade(bodyColor, 0.72))
+  ctx.fillStyle = paint; ctx.fill(body)
+  ctx.strokeStyle = shade(bodyColor, 0.5); ctx.lineWidth = 0.05; ctx.stroke(body)
+  // bonnet crease
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 0.05
+  ctx.beginPath(); ctx.moveTo(-hw * 0.5, -hl + 0.2); ctx.lineTo(-hw * 0.55, -hl + 1.35); ctx.moveTo(hw * 0.5, -hl + 0.2); ctx.lineTo(hw * 0.55, -hl + 1.35); ctx.stroke()
+  // glass: windscreen, side windows and rear window around the roof
+  ctx.fillStyle = '#15202a'
+  ctx.beginPath(); ctx.moveTo(-hw * 0.78, -hl + 1.5); ctx.lineTo(hw * 0.78, -hl + 1.5); ctx.lineTo(hw * 0.7, -hl + 2.15); ctx.lineTo(-hw * 0.7, -hl + 2.15); ctx.closePath(); ctx.fill()
+  ctx.beginPath(); ctx.moveTo(-hw * 0.66, hl - 1.15); ctx.lineTo(hw * 0.66, hl - 1.15); ctx.lineTo(hw * 0.78, hl - 0.55); ctx.lineTo(-hw * 0.78, hl - 0.55); ctx.closePath(); ctx.fill()
+  ctx.beginPath(); ctx.roundRect(-hw * 0.9, -hl + 2.1, hw * 1.8, hl * 2 - 3.3, 0.15); ctx.fill()
+  const roof = ctx.createLinearGradient(-hw, 0, hw, 0)
+  const rc = roofColor ?? bodyColor
+  roof.addColorStop(0, shade(rc, 0.9)); roof.addColorStop(0.5, shade(rc, 1.3)); roof.addColorStop(1, shade(rc, 0.9))
+  ctx.fillStyle = roof
+  ctx.beginPath(); ctx.roundRect(-hw * 0.7, -hl + 2.2, hw * 1.4, hl * 2 - 3.5, 0.28); ctx.fill()
+  // lights
+  ctx.fillStyle = '#fff6c2'
+  ctx.beginPath(); ctx.ellipse(-hw * 0.62, -hl + 0.2, 0.26, 0.13, 0.3, 0, Math.PI * 2); ctx.ellipse(hw * 0.62, -hl + 0.2, 0.26, 0.13, -0.3, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = car.braking ? '#ff2b2b' : '#8c1414'
+  ctx.fillRect(-hw + 0.1, hl - 0.22, 0.5, 0.14); ctx.fillRect(hw - 0.6, hl - 0.22, 0.5, 0.14)
+  if (car.braking) { ctx.fillStyle = 'rgba(255,60,60,.3)'; ctx.beginPath(); ctx.arc(-hw + 0.35, hl, 0.5, 0, Math.PI * 2); ctx.arc(hw - 0.35, hl, 0.5, 0, Math.PI * 2); ctx.fill() }
   ctx.restore()
 }
 
@@ -78,7 +108,7 @@ export function drawTop(ctx, scene, run, { W, H, weather, time, offroad }) {
   if (scene.kind === 'track') drawMiniMap(ctx, scene.track, car, W)
   const light = scene.kind === 'track' ? { x: W / 2, y: H * 0.7, r: Math.max(W, H) * 0.55 } : { x: W / 2, y: H / 2, r: Math.max(W, H) * 0.7 }
   drawWeather(ctx, weather, W, H, time, light)
-  if (offroad) { ctx.fillStyle = 'rgba(255,196,0,.95)'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Off the road: slow down and steer back', W / 2, H - 20) }
+  if (offroad) { ctx.fillStyle = 'rgba(255,196,0,.95)'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Off the road: slow down and steer back', W / 2, 140) }
 }
 
 function drawTrackTop(ctx, track, run) {
@@ -95,6 +125,14 @@ function drawTrackTop(ctx, track, run) {
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(track.start.heading)
   for (let i = 0; i < 9; i += 1) { ctx.fillStyle = i % 2 ? '#fff' : '#111'; ctx.fillRect(-ROAD_HALF + i, -0.5, 1, 1) }
   ctx.restore()
+  ctx.lineCap = 'butt'
+  for (const side of track.fence) { // the fence: red and white posts all round
+    const f = new Path2D()
+    side.forEach((p, i) => (i ? f.lineTo(p.x, p.y) : f.moveTo(p.x, p.y)))
+    f.closePath()
+    ctx.strokeStyle = '#d62828'; ctx.lineWidth = 0.5; ctx.stroke(f)
+    ctx.strokeStyle = '#fff'; ctx.setLineDash([1.5, 1.5]); ctx.stroke(f); ctx.setLineDash([])
+  }
   track.cones.forEach((c, i) => {
     if (run.hit.includes(i)) return
     ctx.fillStyle = '#ff7a00'; ctx.beginPath(); ctx.arc(c.x, c.y, 0.45, 0, Math.PI * 2); ctx.fill()
@@ -110,7 +148,7 @@ function drawLotTop(ctx, lot) {
   const t = lot.target
   ctx.fillStyle = 'rgba(74, 222, 128, .35)'; ctx.fillRect(t.x - t.w / 2, t.y - t.l / 2, t.w, t.l)
   ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 0.3; ctx.strokeRect(t.x - t.w / 2, t.y - t.l / 2, t.w, t.l)
-  lot.parked.forEach((o) => drawCarTop(ctx, { x: o.x, y: o.y, heading: 0, steer: 0 }, CAR_COLORS[o.color % CAR_COLORS.length], 'rgba(255,255,255,.25)'))
+  lot.parked.forEach((o) => drawCarTop(ctx, { x: o.x, y: o.y, heading: 0, steer: 0 }, CAR_COLORS[o.color % CAR_COLORS.length]))
 }
 
 function drawMiniMap(ctx, track, car, W) {
@@ -205,9 +243,20 @@ function drawTrack3D(ctx, track, run, cam, pal) {
   const items = []
   for (const b of track.bushes) { const { z, r } = toCamera(cam, b.x, b.y); if (z > 1 && z < 150 && Math.abs(r) < z * 1.4 + 12) items.push({ z, kind: 'tree', b }) }
   track.cones.forEach((c, i) => { if (run.hit.includes(i)) return; const { z, r } = toCamera(cam, c.x, c.y); if (z > 0.6 && z < 150 && Math.abs(r) < z * 1.4 + 10) items.push({ z, kind: 'cone', c }) })
+  for (const f of track.fence) {
+    for (let i = run.index + 60; i >= run.index - 6; i -= 1) {
+      const a = f[((i % n) + n) % n]; const b = f[(((i + 1) % n) + n) % n]
+      const z = toCamera(cam, (a.x + b.x) / 2, (a.y + b.y) / 2).z
+      if (z > 0.5 && z < 150) items.push({ z, kind: 'fence', a, b, red: (i >> 1) & 1 })
+    }
+  }
   items.sort((a, b) => b.z - a.z)
   for (const it of items) {
-    if (it.kind === 'tree') {
+    if (it.kind === 'fence') {
+      const { a, b } = it
+      fillPoly(ctx, projectPoly(cam, [[a.x, a.y, 0.15], [b.x, b.y, 0.15], [b.x, b.y, 0.95], [a.x, a.y, 0.95]]), it.red ? '#d62828' : '#f1f1f1')
+      fillPoly(ctx, projectPoly(cam, [[a.x, a.y, 0], [b.x, b.y, 0], [b.x, b.y, 0.15], [a.x, a.y, 0.15]]), '#555')
+    } else if (it.kind === 'tree') {
       const { x, y, r } = it.b
       const base = project(cam, x, y, 0); const top = project(cam, x, y, 2.4 + r * 0.5)
       if (!base || !top) continue
@@ -256,22 +305,46 @@ function drawCarRear(ctx, cam, car) {
   const p = project(cam, car.x, car.y, 0)
   if (!p) return
   const k = p.k
-  const w = CAR.width * k; const h = 1.45 * k
-  const x = p.x - w / 2 + (car.steer ?? 0) * 0.04 * w; const y = p.y - h
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, w * 0.62, w * 0.1, 0, 0, Math.PI * 2); ctx.fill()
-  ctx.fillStyle = '#0e0e10'; ctx.fillRect(x + w * 0.06, p.y - h * 0.2, w * 0.2, h * 0.2); ctx.fillRect(x + w * 0.74, p.y - h * 0.2, w * 0.2, h * 0.2)
-  ctx.fillStyle = '#b91c22'
-  ctx.beginPath(); ctx.roundRect(x, y + h * 0.38, w, h * 0.55, w * 0.06); ctx.fill()
-  ctx.fillStyle = '#9c161b'
-  ctx.beginPath(); ctx.moveTo(x + w * 0.12, y + h * 0.4); ctx.lineTo(x + w * 0.22, y); ctx.lineTo(x + w * 0.78, y); ctx.lineTo(x + w * 0.88, y + h * 0.4); ctx.closePath(); ctx.fill()
-  ctx.fillStyle = '#1a232c'
-  ctx.beginPath(); ctx.moveTo(x + w * 0.18, y + h * 0.37); ctx.lineTo(x + w * 0.26, y + h * 0.08); ctx.lineTo(x + w * 0.74, y + h * 0.08); ctx.lineTo(x + w * 0.82, y + h * 0.37); ctx.closePath(); ctx.fill()
-  ctx.fillStyle = '#fff'; ctx.fillRect(p.x - w * 0.06, y + h * 0.14, w * 0.12, w * 0.12)
-  ctx.fillStyle = '#b91c22'; ctx.font = `bold ${Math.max(6, w * 0.1)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('L', p.x, y + h * 0.14 + w * 0.1)
-  ctx.fillStyle = car.braking ? '#ff3030' : '#8a1515' // tail lights
-  ctx.fillRect(x + w * 0.04, y + h * 0.5, w * 0.2, h * 0.12); ctx.fillRect(x + w * 0.76, y + h * 0.5, w * 0.2, h * 0.12)
-  if (car.braking) { ctx.fillStyle = 'rgba(255, 60, 60, .35)'; ctx.beginPath(); ctx.arc(x + w * 0.14, y + h * 0.56, w * 0.18, 0, Math.PI * 2); ctx.arc(x + w * 0.86, y + h * 0.56, w * 0.18, 0, Math.PI * 2); ctx.fill() }
-  ctx.fillStyle = '#f4f4f4'; ctx.fillRect(p.x - w * 0.14, y + h * 0.7, w * 0.28, h * 0.12)
+  const w = CAR.width * k
+  const h = 1.45 * k
+  const lean = (car.steer ?? 0) * 0.03 * w // the body leans a little in a turn
+  const x = p.x - w / 2 + lean
+  const y = p.y - h
+  const body = '#c8202a'
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, w * 0.6, w * 0.09, 0, 0, Math.PI * 2); ctx.fill()
+  // tyres
+  ctx.fillStyle = '#0b0c0e'
+  ctx.beginPath(); ctx.roundRect(x + w * 0.05, p.y - h * 0.3, w * 0.17, h * 0.3, w * 0.03); ctx.roundRect(x + w * 0.78, p.y - h * 0.3, w * 0.17, h * 0.3, w * 0.03); ctx.fill()
+  // lower body and bumper
+  const lower = ctx.createLinearGradient(0, y + h * 0.4, 0, y + h * 0.95)
+  lower.addColorStop(0, shade(body, 1.2)); lower.addColorStop(1, shade(body, 0.6))
+  ctx.fillStyle = lower
+  ctx.beginPath(); ctx.roundRect(x, y + h * 0.4, w, h * 0.5, [w * 0.07, w * 0.07, w * 0.04, w * 0.04]); ctx.fill()
+  ctx.fillStyle = '#1b1d20'
+  ctx.beginPath(); ctx.roundRect(x + w * 0.03, y + h * 0.8, w * 0.94, h * 0.14, w * 0.03); ctx.fill()
+  // cabin: roof, glass and pillars
+  ctx.fillStyle = shade(body, 0.9)
+  ctx.beginPath(); ctx.moveTo(x + w * 0.1, y + h * 0.42); ctx.lineTo(x + w * 0.2, y + h * 0.02); ctx.quadraticCurveTo(p.x + lean, y - h * 0.03, x + w * 0.8, y + h * 0.02); ctx.lineTo(x + w * 0.9, y + h * 0.42); ctx.closePath(); ctx.fill()
+  const glass = ctx.createLinearGradient(0, y + h * 0.08, 0, y + h * 0.4)
+  glass.addColorStop(0, '#2b3a47'); glass.addColorStop(1, '#10171d')
+  ctx.fillStyle = glass
+  ctx.beginPath(); ctx.moveTo(x + w * 0.16, y + h * 0.4); ctx.lineTo(x + w * 0.24, y + h * 0.1); ctx.lineTo(x + w * 0.76, y + h * 0.1); ctx.lineTo(x + w * 0.84, y + h * 0.4); ctx.closePath(); ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,.16)'
+  ctx.beginPath(); ctx.moveTo(x + w * 0.27, y + h * 0.12); ctx.lineTo(x + w * 0.42, y + h * 0.12); ctx.lineTo(x + w * 0.32, y + h * 0.38); ctx.lineTo(x + w * 0.2, y + h * 0.38); ctx.closePath(); ctx.fill()
+  // L plate on the glass
+  ctx.fillStyle = '#fff'; ctx.fillRect(p.x + lean - w * 0.07, y + h * 0.17, w * 0.14, w * 0.14)
+  ctx.fillStyle = '#c8202a'; ctx.font = `bold ${Math.max(7, w * 0.11)}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('L', p.x + lean, y + h * 0.17 + w * 0.115)
+  // boot lid line and number plate
+  ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = Math.max(1, w * 0.01)
+  ctx.beginPath(); ctx.moveTo(x + w * 0.1, y + h * 0.46); ctx.lineTo(x + w * 0.9, y + h * 0.46); ctx.stroke()
+  ctx.fillStyle = '#f5f5f0'; ctx.beginPath(); ctx.roundRect(p.x + lean - w * 0.15, y + h * 0.66, w * 0.3, h * 0.11, w * 0.01); ctx.fill()
+  // tail lights wrap round the corners
+  const lit = car.braking
+  ctx.fillStyle = lit ? '#ff3030' : '#a01818'
+  for (const [lx, flip] of [[x + w * 0.03, 1], [x + w * 0.97, -1]]) {
+    ctx.beginPath(); ctx.moveTo(lx, y + h * 0.5); ctx.lineTo(lx + flip * w * 0.27, y + h * 0.52); ctx.lineTo(lx + flip * w * 0.24, y + h * 0.63); ctx.lineTo(lx, y + h * 0.65); ctx.closePath(); ctx.fill()
+  }
+  if (lit) { ctx.fillStyle = 'rgba(255, 60, 60, .3)'; ctx.beginPath(); ctx.arc(x + w * 0.14, y + h * 0.58, w * 0.2, 0, Math.PI * 2); ctx.arc(x + w * 0.86, y + h * 0.58, w * 0.2, 0, Math.PI * 2); ctx.fill() }
 }
 
 // The view from the driver's seat: bonnet, dashboard and a steering wheel that turns with the car.

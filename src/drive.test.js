@@ -93,7 +93,7 @@ describe('the track', () => {
   })
 })
 
-import { LOT_HALF, WEATHER, buildLot, corners, newParkingRun, overlap, parkingScore, stepParking } from './drive.js'
+import { BARRIER, GEAR_TOP, LOT_HALF, WEATHER, buildLot, corners, newParkingRun, overlap, parkingScore, stepParking } from './drive.js'
 import { makeCamera, project, projectPoly } from './camera.js'
 
 describe('weather and free driving', () => {
@@ -199,5 +199,41 @@ describe('the 3D camera', () => {
     expect(strip).not.toBeNull()
     expect(strip.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true)
     expect(projectPoly(cam, [[-3, 5, 0], [3, 5, 0], [3, 20, 0], [-3, 20, 0]])).toBeNull()
+  })
+})
+
+describe('manual gears', () => {
+  const run = (gear, seconds, throttle = 1, car = newCar()) => {
+    let c = car
+    for (let i = 0; i < seconds * 60; i += 1) c = stepCar(c, { throttle, brake: 0, steer: 0, gear }, 1 / 60)
+    return c
+  }
+  it('neutral does not move the car', () => { expect(run(0, 3).v).toBe(0) })
+  it('each gear runs out of speed at its top', () => {
+    expect(run(1, 20).v).toBeLessThan(GEAR_TOP[1] + 0.1)
+    expect(run(1, 20).v).toBeGreaterThan(GEAR_TOP[1] * 0.9)
+    expect(run(5, 60, 1, { ...newCar(), v: 20 }).v).toBeGreaterThan(run(1, 60).v)
+  })
+  it('a high gear is slow to get going', () => { expect(run(5, 3).v).toBeLessThan(run(1, 3).v) })
+  it('reverse goes backwards and the brake never reverses the car', () => {
+    expect(run(-1, 3).v).toBeLessThan(-1)
+    let c = newCar()
+    for (let i = 0; i < 120; i += 1) c = stepCar(c, { throttle: 0, brake: 1, steer: 0, gear: 1 }, 1 / 60)
+    expect(c.v).toBe(0)
+  })
+  it('too high a speed for the gear slows the car down', () => {
+    expect(run(1, 3, 1, { ...newCar(), v: 20 }).v).toBeLessThan(15)
+  })
+})
+
+describe('the fence', () => {
+  it('stops the car beyond the grass and slows it down', () => {
+    const track = buildTrack()
+    let run = newRun(track)
+    run.car = { ...run.car, heading: run.car.heading + Math.PI / 2, v: 15 } // drive straight off the road
+    for (let i = 0; i < 600; i += 1) run = stepRun(run, track, { throttle: 1, brake: 0, steer: 0 }, 1 / 60)
+    expect(nearest(track, run.car.x, run.car.y).dist).toBeLessThanOrEqual(BARRIER + 0.01)
+    expect(run.fences).toBeGreaterThanOrEqual(1)
+    expect(Math.abs(run.car.v)).toBeLessThan(10)
   })
 })

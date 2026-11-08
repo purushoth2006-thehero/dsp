@@ -4,10 +4,18 @@
 
 export const CAR = { length: 4.2, width: 1.9, wheelbase: 2.7 }
 export const ROAD_HALF = 4.5 // half the road width: a 9 m wide road
+export const BARRIER = ROAD_HALF + 6 // the fence: 6 m of grass beside the road, then you cannot go further
 export const SPEED_LIMIT = 60 / 3.6 // 60 km/h in m/s
 export const MAX_SPEED = 32 // about 115 km/h
 const MAX_REVERSE = 6
 const CONE_R = 0.3
+
+// Manual gearbox: -1 is reverse, 0 is neutral, 1 to 5 go forward. Each gear pulls hard at low speed and runs out of speed at
+// its top (m/s). A low gear is strong but cannot go fast; a high gear is slow to get moving.
+export const GEAR_TOP = [0, 8, 14, 20, 26, 32]
+const GEAR_PULL = [0, 7.5, 5.8, 4.4, 3.4, 2.6]
+const GEAR_LOW = [0, 0, 3, 6, 10, 14] // below this speed a high gear is weak
+export const gearLabel = (g) => (g < 0 ? 'R' : g === 0 ? 'N' : String(g))
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 export const kmh = (v) => Math.round(Math.abs(v) * 3.6)
@@ -16,7 +24,8 @@ export const kmh = (v) => Math.round(Math.abs(v) * 3.6)
 
 export const newCar = (x = 0, y = 0, heading = 0) => ({ x, y, heading, v: 0, steer: 0, braking: false })
 
-// One step of driving. inp = { throttle: 0..1, brake: 0..1, steer: -1 (left) .. 1 (right) }.
+// One step of driving. inp = { throttle: 0..1, brake: 0..1, steer: -1 (left) .. 1 (right), gear?, direct? }.
+// Without a gear the car is automatic (brake also reverses). direct means a steering wheel is held, so the wheels follow it closely.
 export function stepCar(c, inp, dt, offroad = false, gripScale = 1) {
   const throttle = clamp(inp.throttle ?? 0, 0, 1)
   const brake = clamp(inp.brake ?? 0, 0, 1)
@@ -24,10 +33,24 @@ export function stepCar(c, inp, dt, offroad = false, gripScale = 1) {
   let a = 0
   let reversing = false
 
-  if (throttle > 0) a += 10 * throttle * (1 - Math.max(0, v) / 36)
-  if (brake > 0) {
-    if (v > 0.3) a -= 15 * brake // braking
-    else if (throttle === 0) { reversing = true; a -= 4 * brake * clamp(1 + v / MAX_REVERSE, 0, 1) } // then reverse
+  if (inp.gear === undefined) {
+    if (throttle > 0) a += 10 * throttle * (1 - Math.max(0, v) / 36)
+    if (brake > 0) {
+      if (v > 0.3) a -= 15 * brake // braking
+      else if (throttle === 0) { reversing = true; a -= 4 * brake * clamp(1 + v / MAX_REVERSE, 0, 1) } // then reverse
+    }
+  } else {
+    const g = inp.gear
+    if (g > 0 && throttle > 0) {
+      const top = GEAR_TOP[g]
+      if (v > top) a -= 2 + (v - top) * 1.5 // the engine cannot go faster in this gear: shift up
+      else {
+        const pull = GEAR_LOW[g] ? clamp(v / GEAR_LOW[g], 0.3, 1) : 1
+        a += GEAR_PULL[g] * throttle * pull * (1 - (Math.max(0, v) / top) ** 2)
+      }
+    } else if (g < 0 && throttle > 0) a -= 3.5 * throttle * clamp(1 + v / MAX_REVERSE, 0, 1)
+    if (g !== 0 && throttle === 0 && Math.abs(v) > 0.05) a -= Math.sign(v) * 0.8 // engine braking
+    if (brake > 0 && Math.abs(v) > 0.05) a -= Math.sign(v) * 15 * brake // the brake only stops the car
   }
   // Air and rolling resistance; grass and gravel drag much harder.
   const drag = offroad ? 2.5 + 0.03 * v * v : 0.3 + 0.002 * v * v
@@ -41,18 +64,18 @@ export function stepCar(c, inp, dt, offroad = false, gripScale = 1) {
   v = clamp(v, -MAX_REVERSE, MAX_SPEED)
 
   // The steering wheel turns gradually, and the wheels turn less at speed.
-  const rate = inp.steer === 0 ? 7 : 3.5
+  const rate = inp.steer === 0 ? 8 : inp.direct ? 14 : 4.5
   const steer = c.steer + clamp((inp.steer ?? 0) - c.steer, -rate * dt, rate * dt)
   const maxAngle = 0.62 / (1 + (Math.abs(v) / 14) ** 2) + 0.05
   let turn = (v / CAR.wheelbase) * Math.tan(steer * maxAngle)
-  const grip = (offroad ? 5 : 9) * gripScale // the most sideways acceleration the tyres can hold (less on a wet road)
+  const grip = (offroad ? 6 : 11) * gripScale // the most sideways acceleration the tyres can hold (less on a wet road)
   if (Math.abs(turn * v) > grip) turn = (Math.sign(turn) * grip) / Math.abs(v) // beyond that the car understeers
 
   const heading = c.heading + turn * dt
   return {
     x: c.x + Math.sin(heading) * v * dt,
     y: c.y - Math.cos(heading) * v * dt,
-    heading, v, steer, braking: brake > 0 && before > 0.3,
+    heading, v, steer, braking: brake > 0 && Math.abs(before) > 0.3,
   }
 }
 
@@ -76,6 +99,13 @@ function smoothLoop(points, per = 14) {
     }
   }
   return out
+}
+
+const segPoint = (px, py, a, b) => {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const t = clamp(((px - a.x) * dx + (py - a.y) * dy) / (dx * dx + dy * dy), 0, 1)
+  return { x: a.x + t * dx, y: a.y + t * dy }
 }
 
 const segDist = (px, py, a, b) => {
@@ -116,6 +146,14 @@ export function buildTrack() {
     const side = j % 2 === 0 ? 1 : -1
     track.cones.push({ x: p.x - p.ty * side * 2.3, y: p.y + p.tx * side * 2.3 })
   }
+  // The fence on both sides of the road, as lists of points the same length as the road.
+  const side = (sign) => pts.map((p, i) => {
+    const a = pts[(i + n - 1) % n]
+    const b = pts[(i + 1) % n]
+    const len = Math.hypot(b.x - a.x, b.y - a.y)
+    return { x: p.x - ((b.y - a.y) / len) * BARRIER * sign, y: p.y + ((b.x - a.x) / len) * BARRIER * sign }
+  })
+  track.fence = [side(1), side(-1)]
   // Bushes beside the road, so you can feel the speed.
   const xs = pts.map((p) => p.x)
   const ys = pts.map((p) => p.y)
@@ -126,7 +164,7 @@ export function buildTrack() {
   while (track.bushes.length < 220) {
     const x = minX - 60 + rnd() * (maxX - minX + 120)
     const y = minY - 60 + rnd() * (maxY - minY + 120)
-    if (nearest(track, x, y).dist > ROAD_HALF + 7) track.bushes.push({ x, y, r: 1.5 + rnd() * 2.5 })
+    if (nearest(track, x, y).dist > BARRIER + 1.5) track.bushes.push({ x, y, r: 1.5 + rnd() * 2.5 })
   }
   return track
 }
@@ -165,7 +203,21 @@ export function stepRun(run, track, inp, dt, opts = {}) {
     if (Math.abs(side) < CAR.width / 2 + CONE_R && Math.abs(ahead) < CAR.length / 2 + CONE_R) { hit.push(i); v *= 0.6 }
   })
 
-  const index = nearest(track, car.x, car.y, road.index).index
+  // The fence: the car cannot pass it, and loses most of its speed when it touches it.
+  const after = nearest(track, car.x, car.y, road.index)
+  let fences = run.fences ?? 0
+  let touching = false
+  if (after.dist > BARRIER) {
+    const near = segPoint(car.x, car.y, track.pts[after.index], track.pts[(after.index + 1) % track.n])
+    const k = (BARRIER - 0.05) / after.dist
+    car.x = near.x + (car.x - near.x) * k
+    car.y = near.y + (car.y - near.y) * k
+    v *= 0.25
+    touching = true
+    if (!run.touching) fences += 1
+  }
+
+  const index = nearest(track, car.x, car.y, after.index).index
   const cp = Math.floor((run.next % track.checkpoints) * track.n / track.checkpoints)
   let next = run.next
   let finished = false
@@ -175,7 +227,7 @@ export function stepRun(run, track, inp, dt, opts = {}) {
   }
 
   return {
-    ...run, car: { ...car, v }, index, next, started, finished, hit, offroad,
+    ...run, car: { ...car, v }, index, next, started, finished, hit, offroad, fences, touching,
     time: started ? run.time + dt : 0,
     offroadTime: run.offroadTime + (offroad ? dt : 0),
     speedingTime: run.speedingTime + (!opts.free && Math.abs(v) > SPEED_LIMIT + 0.5 ? dt : 0),

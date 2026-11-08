@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  SPEED_LIMIT, WEATHER, buildLot, buildTrack, drivingScore, kmh, newParkingRun, newRun, parkingScore, stepParking, stepRun,
+  GEAR_TOP, SPEED_LIMIT, WEATHER, buildLot, buildTrack, drivingScore, gearLabel, kmh, newParkingRun, newRun, parkingScore, stepParking, stepRun,
 } from '../../drive.js'
 import { VIEWS, VIEW_LABEL } from '../../camera.js'
 import { draw3D, drawTop } from '../../render.js'
@@ -32,8 +32,11 @@ export default function CarGame() {
   const runRef = useRef(newRun(track))
   const keys = useRef(new Set())
   const touch = useRef({ gas: false, brake: false, wheel: null })
+  const gearRef = useRef(0) // manual gearbox: -1 reverse, 0 neutral, 1 to 5
+  const [note, setNote] = useState('')
+  const noteTimer = useRef(0)
   const [phase, setPhase] = useState('ready') // ready | playing | done
-  const [hud, setHud] = useState({ speed: 0, gear: 'N', time: 0, count: 0, over: false })
+  const [hud, setHud] = useState({ speed: 0, gear: 'N', time: 0, count: 0, over: false, shift: false })
   const [result, setResult] = useState(null)
   const [best, setBest] = useState(readBest)
   const stageRef = useRef(null)
@@ -75,8 +78,10 @@ export default function CarGame() {
   const start = useCallback(() => {
     runRef.current = mode === 'park' ? newParkingRun(lot) : newRun(track)
     touch.current = { gas: false, brake: false, wheel: null }
+    gearRef.current = 0
+    setNote('Shift up to gear 1 to move (▲ or E)')
     setResult(null)
-    setHud({ speed: 0, gear: 'N', time: 0, count: 0, over: false })
+    setHud({ speed: 0, gear: 'N', time: 0, count: 0, over: false, shift: false })
     setPhase('playing')
   }, [mode, lot, track])
 
@@ -84,6 +89,21 @@ export default function CarGame() {
     runRef.current = mode === 'park' ? newParkingRun(lot) : newRun(track)
     setPhase('ready')
   }
+
+  const flash = useCallback((text) => { setNote(text); clearTimeout(noteTimer.current); noteTimer.current = setTimeout(() => setNote(''), 2200) }, [])
+
+  // Moves to a gear. Reverse can only be picked, or left, when the car is almost stopped.
+  const shiftTo = useCallback((g) => {
+    const target = Math.max(-1, Math.min(5, g))
+    const cur = gearRef.current
+    if (target === cur) return
+    const stopped = Math.abs(runRef.current.car.v) < 1.5
+    if ((target < 0 || cur < 0) && target !== 0 && !stopped) { flash('Stop the car before reverse'); return }
+    if (cur < 0 && target > 0 && !stopped) { flash('Stop the car first'); return }
+    gearRef.current = target
+    setHud((h) => ({ ...h, gear: gearLabel(target) }))
+    flash(target === 0 ? 'Neutral: the car rolls' : target < 0 ? 'Reverse' : `Gear ${target}`)
+  }, [flash])
 
   const cycleView = useCallback(() => setView((v) => VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]), [])
 
@@ -95,6 +115,8 @@ export default function CarGame() {
       throttle: k.has('ArrowUp') || k.has('w') || t.gas ? 1 : 0,
       brake: k.has('ArrowDown') || k.has('s') || k.has(' ') || t.brake ? 1 : 0,
       steer: key !== 0 ? key : (t.wheel ?? 0),
+      direct: key === 0 && t.wheel !== null,
+      gear: gearRef.current,
     }
   }
 
@@ -128,7 +150,7 @@ export default function CarGame() {
       if (now - lastHud > 90) {
         lastHud = now
         setHud({
-          speed: kmh(run.car.v), gear: run.car.v > 0.5 ? 'D' : run.car.v < -0.5 ? 'R' : 'N',
+          speed: kmh(run.car.v), gear: gearLabel(gearRef.current), shift: gearRef.current > 0 && run.car.v > GEAR_TOP[gearRef.current] * 0.93,
           time: run.time, count: park ? run.hits : run.hit.length, over: mode === 'test' && Math.abs(run.car.v) > SPEED_LIMIT + 0.5,
         })
       }
@@ -155,18 +177,27 @@ export default function CarGame() {
     const normal = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key)
     const down = (e) => {
       const key = normal(e)
-      if (key === 'c' && !e.repeat) { cycleView(); return }
+      if (e.repeat && (key === 'c' || key === 'e' || key === 'q')) return
+      if (key === 'c') { cycleView(); return }
+      if (phase === 'playing') {
+        if (key === 'e') { shiftTo(gearRef.current + 1); return }
+        if (key === 'q') { shiftTo(gearRef.current - 1); return }
+        if (key === 'n') { shiftTo(0); return }
+        if (key === 'r') { shiftTo(-1); return }
+        if (/^[1-5]$/.test(key)) { shiftTo(Number(key)); return }
+      }
       if (!drive.has(key)) { if (e.key === 'Enter' && phase !== 'playing' && !(e.target instanceof HTMLButtonElement)) start(); return }
       if (phase === 'playing') e.preventDefault()
       keys.current.add(key)
     }
     const up = (e) => keys.current.delete(normal(e))
-    const clear = () => keys.current.clear()
+    const clear = () => { keys.current.clear(); touch.current.gas = false; touch.current.brake = false }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('blur', clear)
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', clear) }
-  }, [phase, start, cycleView])
+    document.addEventListener('visibilitychange', clear)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear) }
+  }, [phase, start, cycleView, shiftTo])
 
   // A pedal on the screen is "held" for as long as the finger stays on it.
   const hold = (name) => ({
@@ -188,7 +219,7 @@ export default function CarGame() {
       <div className={`game${full ? ' full' : ''}`}>
         <div className="drive-hud">
           <div className={`speedo${hud.over ? ' over' : ''}`}><b>{hud.speed}</b><span>km/h</span></div>
-          <div className="gear" aria-label="Gear">{hud.gear}</div>
+          <div className={`gear${hud.shift ? ' shift' : ''}`} aria-label={`Gear ${hud.gear}`}>{hud.gear}</div>
           {mode === 'test' && <div className="limit" aria-label="Speed limit 60"><span>60</span></div>}
           <div className="drive-stats">
             <b>{fmt(hud.time)}</b>
@@ -204,6 +235,8 @@ export default function CarGame() {
               📷 {VIEW_LABEL[view]}
             </button>
           )}
+          {phase === 'playing' && note && <div className="game-note" role="status">{note}</div>}
+          {phase === 'playing' && hud.shift && <div className="game-note warn" role="status">Shift up</div>}
           {phase === 'ready' && (
             <div className="game-overlay menu">
               <h2>Choose a drive</h2>
@@ -226,7 +259,8 @@ export default function CarGame() {
               </div>
               <ul className="lines">
                 <li>Drag the wheel to steer, hold Gas to go</li>
-                <li>Brake stops the car, then reverses</li>
+                <li>Manual gears: ▲ E up, ▼ Q down. Start in 1, go up as you speed up</li>
+                <li>Stop the car to select R and reverse</li>
                 <li>Keyboard: W A S D or arrows, C changes camera</li>
               </ul>
               {bestLine && <p>{bestLine}</p>}
@@ -255,6 +289,11 @@ export default function CarGame() {
 
         <div className="drive-pad">
           <SteeringWheel onChange={(v) => { touch.current.wheel = v }} />
+          <div className="gear-stick" role="group" aria-label="Gears">
+            <button type="button" className="ghost" aria-label="Shift up" onClick={() => shiftTo(gearRef.current + 1)}>▲</button>
+            <output aria-live="polite">{hud.gear}</output>
+            <button type="button" className="ghost" aria-label="Shift down" onClick={() => shiftTo(gearRef.current - 1)}>▼</button>
+          </div>
           <div className="pad-pedals">
             <button type="button" className="ghost brake" aria-label="Brake" {...hold('brake')}>Brake</button>
             <button type="button" className="ghost gas" aria-label="Accelerate" {...hold('gas')}>Gas</button>
