@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homeFor, useApp } from '../../state/appContext.js'
+import SiteLoader from './SiteLoader.jsx'
+import useSiteReady from './useSiteReady.js'
 import ThemeToggle from '../../ui/ThemeToggle.jsx'
 import { BRAND } from '../../rules.js'
 
@@ -16,12 +18,14 @@ const MENU = [
 export default function SiteLayout() {
   const { session } = useApp()
   const [open, setOpen] = useState(false)
+  const ready = useSiteReady()
   useEffect(() => {
     if (!open) return undefined
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
+  if (!ready) return <SiteLoader />
   return (
     <div className="site">
       <header className="site-top">

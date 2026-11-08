@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { request } from '../../api.js'
 import { BRAND } from '../../rules.js'
+import HeroSlides from './HeroSlides.jsx'
 
 export const PHONE = '7373515196'
 export const EMAIL = 'drivetomyschool@gmail.com'
@@ -14,6 +15,7 @@ export function HomePage() {
   return (
     <>
       <section className="hero">
+        <HeroSlides />
         <div className="hero-head">
           <span className="l-plate" aria-hidden="true">L</span>
           <h1>{BRAND}</h1>
