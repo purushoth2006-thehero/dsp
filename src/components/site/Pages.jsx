@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { request } from '../../api.js'
-import { BRAND, CLOSED_WEEKDAYS, PACKAGES, PLACES, TIME_SLOTS, formatTime } from '../../rules.js'
+import { BRAND, CLOSED_WEEKDAYS, TIME_SLOTS, formatTime } from '../../rules.js'
 
 export const PHONE = '7373515196'
 export const EMAIL = 'drivetomyschool@gmail.com'
@@ -48,22 +48,11 @@ export function ServicesPage() {
           </ul>
         </div>
         <div className="card">
-          <h2>Packages</h2>
-          <ul className="lines">
-            <li className="tier-diamond">Diamond: {PACKAGES.diamond.lessons} lessons</li>
-            <li className="tier-gold">Gold: {PACKAGES.gold.lessons} lessons</li>
-          </ul>
-        </div>
-        <div className="card">
           <h2>Batches</h2>
           <ul className="lines">
             {TIME_SLOTS.map((t) => <li key={t}>{formatTime(t)}</li>)}
           </ul>
           <p className="muted">Closed on {CLOSED_WEEKDAYS.map((d) => DAYS[d]).join(' and ')}.</p>
-        </div>
-        <div className="card">
-          <h2>Training places</h2>
-          <ul className="lines">{PLACES.map((p) => <li key={p}>{p.replace(/_/g, ' ')}</li>)}</ul>
         </div>
         <div className="card">
           <h2>RTO services</h2>
