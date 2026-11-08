@@ -6,6 +6,16 @@ import useSiteReady from './useSiteReady.js'
 import ThemeToggle from '../../ui/ThemeToggle.jsx'
 import { BRAND } from '../../rules.js'
 
+const CREATOR = {
+  name: 'PURUSHOTHAMAN E',
+  links: [
+    { label: 'Portfolio', url: 'https://purushothaman2006152.github.io/purushothaman_portfolio/' },
+    { label: 'GitHub', url: 'https://github.com/purushothaman2006152' },
+    { label: 'GitHub (projects)', url: 'https://github.com/purushoth2006-thehero' },
+    { label: 'LinkedIn', url: 'https://www.linkedin.com/in/purushothamane2006' },
+  ],
+}
+
 const MENU = [
   { to: '/', label: 'Home', end: true },
   { to: '/services', label: 'Services' },
@@ -67,6 +77,15 @@ export default function SiteLayout() {
           <Outlet />
         </main>
       </div>
+
+      <footer className="site-footer">
+        <p className="made-by">Created by <b>{CREATOR.name}</b></p>
+        <ul>
+          {CREATOR.links.map((l) => (
+            <li key={l.url}><a href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a></li>
+          ))}
+        </ul>
+      </footer>
     </div>
   )
 }
