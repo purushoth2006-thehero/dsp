@@ -106,7 +106,10 @@
 .drive-pad { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; user-select: none; -webkit-user-select: none; touch-action: none; }
 .pad-pedals { display: flex; gap: 10px; align-items: flex-end; }
 .wheel { width: 128px; height: 128px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; flex: none; }
+.wheel { position: relative; }
+.wheel::after { content: ''; position: absolute; inset: -12px; } /* a larger area to grab, so a thumb that is a little off still turns the wheel */
 .wheel.held { cursor: grabbing; }
+.wheel.held svg { filter: drop-shadow(0 0 6px rgba(255, 196, 0, .8)); }
 .wheel svg { width: 100%; height: 100%; display: block; transition: transform .22s ease-out; }
 .wheel.held svg { transition: none; }
 .view-btn { position: absolute; left: 8px; top: 8px; z-index: 2; background: rgba(20, 24, 28, .65); color: #fff; border: 1px solid rgba(255, 255, 255, .5); border-radius: 999px; padding: 6px 12px; font-size: .85rem; min-height: 36px; }
