@@ -8,8 +8,8 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 
 // Edit these figures to match the school's real numbers.
 const SINCE = 2013
-const STUDENTS_TAUGHT = '1,000+'
-const LICENCES_GOT = '800+'
+const STUDENTS_TAUGHT = '10,000+'
+const LICENCES_GOT = '7,000+'
 
 export function HomePage() {
   return (
