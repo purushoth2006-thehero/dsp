@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { request } from '../../api.js'
-import { BRAND, CLOSED_WEEKDAYS, TIME_SLOTS, formatTime } from '../../rules.js'
+import { BRAND } from '../../rules.js'
 
 export const PHONE = '7373515196'
 export const EMAIL = 'drivetomyschool@gmail.com'
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 // Edit these figures to match the school's real numbers.
 const SINCE = 2013
@@ -60,13 +59,6 @@ export function ServicesPage() {
             <li>Experienced trainers</li>
             <li>Lady trainer available for one-to-one lessons</li>
           </ul>
-        </div>
-        <div className="card">
-          <h2>Batches</h2>
-          <ul className="lines">
-            {TIME_SLOTS.map((t) => <li key={t}>{formatTime(t)}</li>)}
-          </ul>
-          <p className="muted">Closed on {CLOSED_WEEKDAYS.map((d) => DAYS[d]).join(' and ')}.</p>
         </div>
         <div className="card">
           <h2>RTO services</h2>
