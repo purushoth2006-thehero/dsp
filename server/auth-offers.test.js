@@ -80,3 +80,41 @@ describe('offers', () => {
     expect((await call('POST', '/api/offers', { title: 'Fine', details: 'z'.repeat(301) }, cookie)).status).toBe(400)
   })
 })
+
+describe('bug reports', () => {
+  afterEach(() => api.close())
+  const startWith = async (mailer) => {
+    const handler = createHandler({ env: { NODE_ENV: 'test', ADMIN_PASSWORD: 'admin123' }, store: new MemoryStore(), mailer })
+    const server = http.createServer((req, res) => handler(req, res))
+    await new Promise((r) => server.listen(0, '127.0.0.1', r))
+    api = { base: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((r) => server.close(r)) }
+  }
+
+  it('emails a report and replies with emailed: true', async () => {
+    const sent = []
+    await startWith({ send: async (m) => { sent.push(m); return true } })
+    const res = await post('/api/report', { kind: 'bug', message: 'The booking button does nothing', name: 'Ravi', contact: 'ravi@example.com' })
+    expect(res.status).toBe(201)
+    expect(res.body.emailed).toBe(true)
+    expect(sent[0].subject).toContain('Bug report from Ravi')
+    expect(sent[0].text).toContain('booking button')
+    expect(sent[0].replyTo).toBe('ravi@example.com')
+  })
+
+  it('still accepts the report when email is not set up or fails', async () => {
+    await startWith({ send: async () => { throw new Error('down') } })
+    const res = await post('/api/report', { message: 'Something looks wrong here' })
+    expect(res.status).toBe(201)
+    expect(res.body.emailed).toBe(false)
+  })
+
+  it('rejects short messages, ignores bots, and limits how many one visitor sends', async () => {
+    const sent = []
+    await startWith({ send: async (m) => { sent.push(m); return true } })
+    expect((await post('/api/report', { message: 'short' })).status).toBe(400)
+    expect((await post('/api/report', { message: 'A long enough message', website: 'http://spam' })).status).toBe(200)
+    expect(sent).toHaveLength(0)
+    for (let i = 0; i < 4; i += 1) expect((await post('/api/report', { message: `Report number ${i} here` })).status).toBe(201)
+    expect((await post('/api/report', { message: 'One report too many' })).status).toBe(429)
+  })
+})

@@ -23,6 +23,7 @@ const MENU = [
   { to: '/contact', label: 'Contact Us' },
   { to: '/social', label: 'Social Media' },
   { to: '/game', label: 'Drive' },
+  { to: '/report', label: 'Report a bug' },
 ]
 
 // The public website: the menu hides behind a three-line button; "Students Corner" and "Admin Login" (separate portals) sit at the top right.

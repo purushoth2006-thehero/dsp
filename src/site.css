@@ -209,3 +209,6 @@
 .site-footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; }
 .site-footer a { display: inline-block; padding: 7px 14px; border: 1.5px solid rgba(255, 255, 255, .5); border-radius: 999px; color: #fff; text-decoration: none; font-weight: 600; font-size: .95rem; }
 .site-footer a:hover { background: var(--lane); border-color: var(--lane); color: #1d2227; }
+
+/* hidden field that catches bots */
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
