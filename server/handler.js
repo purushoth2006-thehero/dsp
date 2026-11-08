@@ -2,7 +2,6 @@ import { getConfig } from './config.js'
 import { createStore } from './store/index.js'
 import { HttpError, createService } from './service.js'
 import { createNotifier } from './notify.js'
-import { createMailer } from './mailer.js'
 import { REMINDER_KINDS, sendReminders } from './reminders.js'
 import { buildCookie, captchaSvg, fingerprint, hashCaptcha, newCaptchaText, newChallengeId, parseCookies, safeEqual, signToken, verifyToken } from './security.js'
 
@@ -58,12 +57,11 @@ const clientIp = (req) =>
   || 'unknown'
 
 // env/store/now can be injected for tests; on Vercel everything comes from environment variables.
-export function createHandler({ env = process.env, store: injectedStore, now, notifier: injectedNotifier, mailer: injectedMailer } = {}) {
+export function createHandler({ env = process.env, store: injectedStore, now, notifier: injectedNotifier } = {}) {
   const cfg = getConfig(env)
   const store = injectedStore ?? createStore(cfg)
   const service = store ? createService(store, now ? { now } : {}) : null
   const notifier = injectedNotifier ?? createNotifier(env)
-  const mailer = injectedMailer ?? createMailer(env)
 
   const secureCookie = (req) => cfg.prod || req.headers['x-forwarded-proto'] === 'https'
   const clearCookie = (req) => buildCookie(COOKIE, '', { maxAge: 0, secure: secureCookie(req) })
@@ -126,37 +124,6 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
     if (!token || typeof body.captcha !== 'string') throw bad
     if (!(await store.setnx(`captcha:${token.n}`, '1'))) throw bad
     if (!safeEqual(hashCaptcha(body.captcha, token.n, cfg.secret), token.h)) throw bad
-  }
-
-  // Bug reports and reviews from the website go to the owner's inbox. Anyone may send one; a hidden "website" field
-  // catches simple bots, and each visitor can send only a few an hour.
-  const REPORT_KINDS = { bug: 'Bug report', review: 'Review', idea: 'Suggestion' }
-  async function report(req, res) {
-    const body = await readJson(req)
-    const clean = (v) => [...v].filter((ch) => ch >= ' ' || ch === '\n' || ch === '\t').join('')
-    const text = (v, max) => (typeof v === 'string' ? clean(v.trim()).slice(0, max) : '')
-    if (text(body.website, 50)) return send(res, 200, { ok: true, emailed: true }) // a bot filled the hidden field: pretend it worked
-    if ((await store.incr(`rl:report:${clientIp(req)}`, 60 * 60)) > 5) throw new HttpError(429, 'You have sent a few reports already. Please try again in an hour.')
-    const kind = Object.hasOwn(REPORT_KINDS, body.kind) ? body.kind : 'bug'
-    const message = text(body.message, 2000)
-    const name = text(body.name, 80)
-    const contact = text(body.contact, 120)
-    const page = text(body.page, 200)
-    const device = text(body.device, 200)
-    if (message.length < 10) throw new HttpError(400, 'Please describe it in at least 10 characters.')
-    const entry = { id: `r-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind, name, contact, page, device, message, createdAt: new Date().toISOString() }
-    if ((await store.hgetall('reports')).length < 300) await store.hset('reports', entry.id, entry)
-    let emailed = false
-    try {
-      emailed = await mailer.send({
-        subject: `[Sridhar Driving School] ${REPORT_KINDS[kind]}${name ? ` from ${name}` : ''}`,
-        text: `${REPORT_KINDS[kind]}\n\n${message}\n\nName: ${name || '-'}\nContact: ${contact || '-'}\nPage: ${page || '-'}\nDevice: ${device || '-'}\nSent: ${entry.createdAt}`,
-        replyTo: /^\S+@\S+\.\S+$/.test(contact) ? contact : undefined,
-      })
-    } catch (err) {
-      console.error('Report email failed:', err.message)
-    }
-    return send(res, 201, { ok: true, emailed })
   }
 
   async function login(req, res) {
@@ -234,10 +201,6 @@ export function createHandler({ env = process.env, store: injectedStore, now, no
     if (path === '/api/captcha') {
       if (method !== 'GET') throw new HttpError(405, 'Method not allowed.')
       return newCaptcha(res)
-    }
-    if (path === '/api/report') {
-      if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
-      return report(req, res)
     }
     if (path === '/api/login') {
       if (method !== 'POST') throw new HttpError(405, 'Method not allowed.')
