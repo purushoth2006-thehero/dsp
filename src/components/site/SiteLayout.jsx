@@ -11,6 +11,7 @@ const MENU = [
   { to: '/services', label: 'Services' },
   { to: '/offers', label: 'Offers' },
   { to: '/contact', label: 'Contact Us' },
+  { to: '/social', label: 'Social Media' },
   { to: '/game', label: 'Drive' },
 ]
 

@@ -5,6 +5,7 @@ import HeroSlides from './HeroSlides.jsx'
 
 export const PHONE = '7373515196'
 export const EMAIL = 'drivetomyschool@gmail.com'
+const INSTAGRAM = { handle: 'sridhar_drivingschool', url: 'https://www.instagram.com/sridhar_drivingschool' }
 
 // Edit these figures to match the school's real numbers.
 const SINCE = 2013
@@ -121,6 +122,28 @@ export function ContactPage() {
           <li>Phone: <a href={`tel:+91${PHONE}`}>{PHONE}</a></li>
           <li>Email: <a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
         </ul>
+      </section>
+    </>
+  )
+}
+
+// Social media pages of the school. Add another entry here to show another page.
+export function SocialPage() {
+  return (
+    <>
+      <h1>Social Media</h1>
+      <section className="card social">
+        <h2>Instagram</h2>
+        <ul className="lines">
+          <li>Follow our Instagram page</li>
+          <li>@{INSTAGRAM.handle}</li>
+        </ul>
+        <a className="primary social-btn" href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+          </svg>
+          Open Instagram
+        </a>
       </section>
     </>
   )

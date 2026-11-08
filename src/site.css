@@ -180,3 +180,9 @@
 }
 @keyframes loader-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .site-loader img, .loader-lane { animation: none; } }
+
+/* social media page */
+.social { max-width: 460px; }
+.social-btn { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 22px; text-decoration: none; font-weight: 700; color: #fff !important;
+  background: linear-gradient(45deg, #f9a03f, #e1306c 55%, #833ab4); border: 0; border-radius: 8px; }
+.social-btn:hover { filter: brightness(1.08); }
