@@ -105,6 +105,8 @@ export default function CarGame() {
     flash(target === 0 ? 'Neutral: the car rolls' : target < 0 ? 'Reverse' : `Gear ${target}`)
   }, [flash])
 
+  const shiftBy = useCallback((by) => shiftTo(gearRef.current + by), [shiftTo])
+
   const cycleView = useCallback(() => setView((v) => VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]), [])
 
   const readInput = () => {
@@ -207,7 +209,15 @@ export default function CarGame() {
     },
     onPointerUp: () => { touch.current[name] = false },
     onPointerCancel: () => { touch.current[name] = false },
+    onLostPointerCapture: () => { touch.current[name] = false },
     onContextMenu: (e) => e.preventDefault(),
+  })
+
+  // A gear button reacts the moment a finger lands, so it works while other fingers hold the wheel and the pedals.
+  // Enter and Space on a focused button still work through the click event (detail 0).
+  const tap = (by) => ({
+    onPointerDown: (e) => { e.preventDefault(); shiftBy(by) },
+    onClick: (e) => { if (e.detail === 0) shiftBy(by) },
   })
 
   const m = MODES[mode]
@@ -290,9 +300,9 @@ export default function CarGame() {
         <div className="drive-pad">
           <SteeringWheel onChange={(v) => { touch.current.wheel = v }} />
           <div className="gear-stick" role="group" aria-label="Gears">
-            <button type="button" className="ghost" aria-label="Shift up" onClick={() => shiftTo(gearRef.current + 1)}>▲</button>
+            <button type="button" className="ghost" aria-label="Shift up" {...tap(1)}>▲</button>
             <output aria-live="polite">{hud.gear}</output>
-            <button type="button" className="ghost" aria-label="Shift down" onClick={() => shiftTo(gearRef.current - 1)}>▼</button>
+            <button type="button" className="ghost" aria-label="Shift down" {...tap(-1)}>▼</button>
           </div>
           <div className="pad-pedals">
             <button type="button" className="ghost brake" aria-label="Brake" {...hold('brake')}>Brake</button>

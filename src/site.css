@@ -233,3 +233,4 @@
   .game.full .pad-pedals .gas { min-width: 60px; font-size: .9rem; }
   .game.full .drive-pad .ghost { padding: 0 4px; }
 }
+.drive-pad, .drive-pad * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

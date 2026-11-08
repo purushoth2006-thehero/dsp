@@ -23,8 +23,9 @@ export default function SteeringWheel({ onChange }) {
   }
   // If the finger is lifted anywhere (even outside the wheel, or the touch is cancelled), the wheel must let go.
   useEffect(() => {
-    const release = () => {
-      if (!drag.current) return
+    const release = (e) => {
+      // Only the finger that holds the wheel lets it go: another finger on Gas or Brake must not.
+      if (!drag.current || (e.pointerId !== undefined && e.pointerId !== drag.current.id)) return
       drag.current = null
       setHeld(false)
       setRot(0)
@@ -32,20 +33,21 @@ export default function SteeringWheel({ onChange }) {
     }
     window.addEventListener('pointerup', release)
     window.addEventListener('pointercancel', release)
-    window.addEventListener('blur', release)
-    return () => { window.removeEventListener('pointerup', release); window.removeEventListener('pointercancel', release); window.removeEventListener('blur', release) }
+    const blur = () => release({})
+    window.addEventListener('blur', blur)
+    return () => { window.removeEventListener('pointerup', release); window.removeEventListener('pointercancel', release); window.removeEventListener('blur', blur) }
   }, [onChange])
   const down = (e) => {
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* tracked without capture */ }
-    drag.current = { from: pointerAngle(e), base: rot }
+    drag.current = { id: e.pointerId, from: pointerAngle(e), base: rot }
     setHeld(true)
   }
   const move = (e) => {
-    if (!drag.current) return
+    if (!drag.current || e.pointerId !== drag.current.id) return
     apply(drag.current.base + wrap(pointerAngle(e) - drag.current.from))
   }
-  const up = () => {
-    if (!drag.current) return
+  const up = (e) => {
+    if (!drag.current || e.pointerId !== drag.current.id) return
     drag.current = null
     setHeld(false)
     setRot(0)
