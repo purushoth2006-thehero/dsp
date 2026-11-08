@@ -92,3 +92,112 @@ describe('the track', () => {
     expect(CAR.length).toBeGreaterThan(CAR.width)
   })
 })
+
+import { LOT_HALF, WEATHER, buildLot, corners, newParkingRun, overlap, parkingScore, stepParking } from './drive.js'
+import { makeCamera, project, projectPoly } from './camera.js'
+
+describe('weather and free driving', () => {
+  it('has less grip in the rain', () => {
+    const dry = drive({ ...newCar(), v: 25 }, { steer: 1 }, 1)
+    let wet = { ...newCar(), v: 25 }
+    for (let i = 0; i < 60; i += 1) wet = stepCar(wet, { steer: 1 }, 1 / 60, false, WEATHER.rain.grip)
+    expect(wet.heading).toBeLessThan(dry.heading)
+  })
+
+  it('free driving never finishes a lap or counts speeding', () => {
+    const track = buildTrack()
+    let run = { ...newRun(track), started: true, next: track.checkpoints }
+    const p = track.pts[0]
+    run = stepRun({ ...run, car: { ...run.car, x: p.x, y: p.y, v: 30 } }, track, { throttle: 1 }, 0.1, { free: true })
+    expect(run.finished).toBe(false)
+    expect(run.speedingTime).toBe(0)
+  })
+})
+
+describe('reverse parking', () => {
+  const lot = buildLot()
+  const t = lot.target
+  const parked = (over) => ({ ...newParkingRun(lot), started: true, car: { ...newCar(t.x, t.y, Math.PI), ...over } })
+
+  it('has one empty bay between parked cars, inside the lot', () => {
+    expect(lot.parked).toHaveLength(lot.bays.length - 1)
+    expect(lot.parked.some((o) => Math.abs(o.x - t.x) < 1)).toBe(false)
+    expect(Math.abs(t.y) + t.l / 2).toBeLessThanOrEqual(LOT_HALF.y)
+    const start = lot.start
+    expect(corners(start.x, start.y, start.heading, 1.9, 4.2).every((c) => Math.abs(c.x) < LOT_HALF.x && Math.abs(c.y) < LOT_HALF.y)).toBe(true)
+  })
+
+  it('detects overlapping and separate rectangles', () => {
+    const a = corners(0, 0, 0, 2, 4)
+    expect(overlap(a, corners(1, 1, 0.5, 2, 4))).toBe(true)
+    expect(overlap(a, corners(10, 0, 0, 2, 4))).toBe(false)
+  })
+
+  it('finishes when backed into the bay, straight and stopped, for a moment', () => {
+    let run = parked({})
+    for (let i = 0; i < 60; i += 1) run = stepParking(run, lot, {}, 1 / 60)
+    expect(run.finished).toBe(true)
+    expect(run.hits).toBe(0)
+  })
+
+  it('does not count a car that is parked nose first', () => {
+    let run = parked({ heading: 0 })
+    for (let i = 0; i < 90; i += 1) run = stepParking(run, lot, {}, 1 / 60)
+    expect(run.finished).toBe(false)
+  })
+
+  it('does not count a car that is crooked or still moving', () => {
+    let crooked = parked({ heading: Math.PI + 0.5 })
+    for (let i = 0; i < 90; i += 1) crooked = stepParking(crooked, lot, {}, 1 / 60)
+    expect(crooked.finished).toBe(false)
+  })
+
+  it('stops the car and counts one bump when it touches a parked car', () => {
+    const o = lot.parked[0]
+    let run = { ...newParkingRun(lot), started: true, car: newCar(o.x, o.y + 2.5, 0) }
+    run = stepParking(run, lot, { throttle: 1 }, 1 / 60)
+    expect(run.hits).toBe(1)
+    expect(run.car.v).toBe(0)
+    run = stepParking(run, lot, { throttle: 1 }, 1 / 60)
+    expect(run.hits).toBe(1) // the same bump is not counted twice
+  })
+
+  it('scores carefully', () => {
+    expect(parkingScore({ hits: 0, time: 30 })).toBe(100)
+    expect(parkingScore({ hits: 2, time: 55 })).toBe(72)
+    expect(parkingScore({ hits: 20, time: 300 })).toBe(0)
+  })
+})
+
+describe('the 3D camera', () => {
+  const W = 400
+  const H = 600
+  const car = newCar(0, 0, 0)
+
+  it('puts a point straight ahead in the middle, and nearer points lower', () => {
+    const cam = makeCamera('chase', car, W, H)
+    const far = project(cam, 0, -40)
+    const near = project(cam, 0, -12)
+    expect(far.x).toBeCloseTo(W / 2, 3)
+    expect(near.y).toBeGreaterThan(far.y)
+    expect(far.y).toBeGreaterThan(cam.horizon)
+  })
+
+  it('puts the right-hand side on the right, whichever way the car faces', () => {
+    for (const heading of [0, 1, 2.5]) {
+      const c = newCar(5, 5, heading)
+      const cam = makeCamera('cockpit', c, W, H)
+      const rightOfCar = project(cam, c.x + Math.cos(heading) * 2 + Math.sin(heading) * 20, c.y + Math.sin(heading) * 2 - Math.cos(heading) * 20)
+      expect(rightOfCar.x).toBeGreaterThan(W / 2)
+    }
+  })
+
+  it('hides points behind the camera and cuts polygons at the near plane', () => {
+    const cam = makeCamera('cockpit', car, W, H)
+    expect(project(cam, 0, 10)).toBeNull()
+    const strip = projectPoly(cam, [[-3, 5, 0], [3, 5, 0], [3, -30, 0], [-3, -30, 0]]) // starts behind the camera
+    expect(strip).not.toBeNull()
+    expect(strip.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true)
+    expect(projectPoly(cam, [[-3, 5, 0], [3, 5, 0], [3, 20, 0], [-3, 20, 0]])).toBeNull()
+  })
+})

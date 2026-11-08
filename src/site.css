@@ -104,7 +104,20 @@
 .drive-stats b { font-family: var(--head); font-size: 1.5rem; font-weight: 800; }
 
 .drive-pad { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; user-select: none; -webkit-user-select: none; touch-action: none; }
-.pad-steer, .pad-pedals { display: flex; gap: 10px; }
+.pad-pedals { display: flex; gap: 10px; align-items: flex-end; }
+.wheel { width: 128px; height: 128px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; flex: none; }
+.wheel.held { cursor: grabbing; }
+.wheel svg { width: 100%; height: 100%; display: block; transition: transform .22s ease-out; }
+.wheel.held svg { transition: none; }
+.view-btn { position: absolute; left: 8px; top: 8px; z-index: 2; background: rgba(20, 24, 28, .65); color: #fff; border: 1px solid rgba(255, 255, 255, .5); border-radius: 999px; padding: 6px 12px; font-size: .85rem; min-height: 36px; }
+.game-overlay.menu { justify-content: flex-start; overflow-y: auto; gap: 10px; }
+.choice { display: grid; gap: 6px; width: 100%; max-width: 340px; }
+.choice.row { grid-template-columns: repeat(3, 1fr); }
+.opt { background: rgba(255, 255, 255, .08); color: #fff; border: 2px solid rgba(255, 255, 255, .35); border-radius: 10px; padding: 8px 10px; text-align: left; display: grid; gap: 2px; min-height: 44px; }
+.opt span { font-size: .8rem; opacity: .8; }
+.opt.small { text-align: center; font-weight: 700; padding: 8px 4px; font-size: .85rem; }
+.opt.on { border-color: var(--lane); background: rgba(255, 196, 0, .18); }
+.game-overlay .ghost { color: #fff; border-color: rgba(255, 255, 255, .6); }
 .drive-pad .ghost { min-width: 72px; min-height: 68px; font-size: 1.15rem; font-weight: 800; touch-action: none; }
 .drive-pad .ghost:active { background: var(--none-bg); }
 .pad-pedals .brake { border-color: #d62828; color: #d62828; }
@@ -126,12 +139,13 @@
   pointer-events: auto; min-width: 64px; min-height: 84px; padding: 0 8px; border-radius: 18px; color: #fff;
   background: rgba(20, 24, 28, .55); border: 2px solid rgba(255, 255, 255, .6); -webkit-touch-callout: none;
 }
-.game.full .pad-steer, .game.full .pad-pedals { gap: 8px; }
+.game.full .pad-pedals { gap: 8px; }
+.game.full .wheel { width: 132px; height: 132px; pointer-events: auto; opacity: .92; }
 .game.full .pad-pedals .brake { min-width: 76px; border-color: #ff6b61; color: #ff8a82; }
 .game.full .pad-pedals .gas { border-color: #4ade80; color: #86efac; min-width: 88px; min-height: 100px; }
 .drive-hud .exit { margin-left: 8px; background: transparent; color: #fff; border: 2px solid rgba(255, 255, 255, .6); border-radius: 8px; width: 38px; height: 38px; padding: 0; font-size: 1.1rem; }
 .game-overlay { z-index: 1; }
-.game.full .game-overlay { padding-bottom: 130px; }
+.game.full .game-overlay { padding-bottom: 150px; }
 
 /* the menu hides behind a three-line button and slides in from the left */
 .site-top-left { display: flex; align-items: center; gap: 12px; min-width: 0; }

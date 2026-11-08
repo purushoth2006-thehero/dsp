@@ -17,7 +17,7 @@ export const kmh = (v) => Math.round(Math.abs(v) * 3.6)
 export const newCar = (x = 0, y = 0, heading = 0) => ({ x, y, heading, v: 0, steer: 0, braking: false })
 
 // One step of driving. inp = { throttle: 0..1, brake: 0..1, steer: -1 (left) .. 1 (right) }.
-export function stepCar(c, inp, dt, offroad = false) {
+export function stepCar(c, inp, dt, offroad = false, gripScale = 1) {
   const throttle = clamp(inp.throttle ?? 0, 0, 1)
   const brake = clamp(inp.brake ?? 0, 0, 1)
   let v = c.v
@@ -45,7 +45,7 @@ export function stepCar(c, inp, dt, offroad = false) {
   const steer = c.steer + clamp((inp.steer ?? 0) - c.steer, -rate * dt, rate * dt)
   const maxAngle = 0.62 / (1 + (Math.abs(v) / 14) ** 2) + 0.05
   let turn = (v / CAR.wheelbase) * Math.tan(steer * maxAngle)
-  const grip = offroad ? 5 : 9 // the most sideways acceleration the tyres can hold
+  const grip = (offroad ? 5 : 9) * gripScale // the most sideways acceleration the tyres can hold (less on a wet road)
   if (Math.abs(turn * v) > grip) turn = (Math.sign(turn) * grip) / Math.abs(v) // beyond that the car understeers
 
   const heading = c.heading + turn * dt
@@ -143,12 +143,13 @@ const circularGap = (a, b, n) => { const d = Math.abs(a - b) % n; return Math.mi
 
 // Advances the run by dt seconds. The lap is done when every checkpoint was passed in order
 // and the start line is crossed again.
-export function stepRun(run, track, inp, dt) {
+// opts.grip scales the tyre grip (wet road); opts.free means free driving: no lap, no speeding count.
+export function stepRun(run, track, inp, dt, opts = {}) {
   if (run.finished) return run
   const started = run.started || (inp.throttle ?? 0) > 0 || (inp.brake ?? 0) > 0
   const road = nearest(track, run.car.x, run.car.y, run.index)
   const offroad = road.dist > ROAD_HALF + CAR.width / 2 * 0.6
-  const car = stepCar(run.car, inp, dt, offroad)
+  const car = stepCar(run.car, inp, dt, offroad, opts.grip ?? 1)
 
   // Cones: hitting one knocks it over and slows the car.
   let v = car.v
@@ -168,7 +169,7 @@ export function stepRun(run, track, inp, dt) {
   const cp = Math.floor((run.next % track.checkpoints) * track.n / track.checkpoints)
   let next = run.next
   let finished = false
-  if (started && circularGap(index, cp, track.n) <= 3) {
+  if (!opts.free && started && circularGap(index, cp, track.n) <= 3) {
     next += 1
     finished = next > track.checkpoints
   }
@@ -177,10 +178,87 @@ export function stepRun(run, track, inp, dt) {
     ...run, car: { ...car, v }, index, next, started, finished, hit, offroad,
     time: started ? run.time + dt : 0,
     offroadTime: run.offroadTime + (offroad ? dt : 0),
-    speedingTime: run.speedingTime + (Math.abs(v) > SPEED_LIMIT + 0.5 ? dt : 0),
+    speedingTime: run.speedingTime + (!opts.free && Math.abs(v) > SPEED_LIMIT + 0.5 ? dt : 0),
   }
 }
 
 // Careful driving counts more than speed: 100 points, minus for knocked cones, time on the grass and speeding.
 export const drivingScore = (run) =>
   Math.max(0, Math.round(100 - run.hit.length * 5 - run.offroadTime * 3 - run.speedingTime * 1.5))
+
+// ---------- weather ----------
+
+export const WEATHER = {
+  clear: { label: 'Clear', grip: 1 },
+  rain: { label: 'Rain', grip: 0.62 }, // a wet road: the tyres hold less, so slow down for bends
+  night: { label: 'Night', grip: 1 },
+}
+
+// ---------- the parking lot (reverse parking) ----------
+
+export const LOT_HALF = { x: 30, y: 26 }
+const BAY = { width: 3.2, length: 5.6, count: 9, target: 4 }
+const wrapAngle = (a) => { let r = a; while (r > Math.PI) r -= 2 * Math.PI; while (r < -Math.PI) r += 2 * Math.PI; return r }
+
+export function buildLot() {
+  const bayY = -LOT_HALF.y + 2 + BAY.length / 2 // the bays sit along the top wall
+  const x0 = -(BAY.count * BAY.width) / 2 + BAY.width / 2
+  const bays = Array.from({ length: BAY.count }, (_, i) => ({ x: x0 + i * BAY.width, y: bayY, w: BAY.width, l: BAY.length }))
+  const parked = bays
+    .map((b, i) => ({ x: b.x, y: b.y + 0.2, heading: 0, w: CAR.width, l: CAR.length, color: i % 5 }))
+    .filter((_, i) => i !== BAY.target)
+  return { bays, target: bays[BAY.target], parked, start: { x: -21, y: 8, heading: Math.PI / 2 } }
+}
+
+// The four corners of a car (or any rotated rectangle w x l at x, y).
+export function corners(x, y, heading, w, l) {
+  const s = Math.sin(heading)
+  const c = Math.cos(heading)
+  return [[-w / 2, -l / 2], [w / 2, -l / 2], [w / 2, l / 2], [-w / 2, l / 2]].map(([a, b]) => ({ x: x + a * c + b * s, y: y + a * s - b * c }))
+}
+
+// Do two rotated rectangles overlap? (separating axis test)
+export function overlap(p, q) {
+  for (const poly of [p, q]) {
+    for (let i = 0; i < 4; i += 1) {
+      const a = poly[i]
+      const b = poly[(i + 1) % 4]
+      const nx = -(b.y - a.y)
+      const ny = b.x - a.x
+      const range = (pts) => { const d = pts.map((pt) => pt.x * nx + pt.y * ny); return [Math.min(...d), Math.max(...d)] }
+      const [a0, a1] = range(p)
+      const [b0, b1] = range(q)
+      if (a1 < b0 || b1 < a0) return false
+    }
+  }
+  return true
+}
+
+export const newParkingRun = (lot) => ({
+  car: newCar(lot.start.x, lot.start.y, lot.start.heading),
+  started: false, finished: false, time: 0, hits: 0, contact: false, hold: 0,
+})
+
+// Back the car into the empty bay, nose out, and stop inside the lines.
+export function stepParking(run, lot, inp, dt) {
+  if (run.finished) return run
+  const started = run.started || (inp.throttle ?? 0) > 0 || (inp.brake ?? 0) > 0
+  let car = stepCar(run.car, inp, dt, false)
+  const box = corners(car.x, car.y, car.heading, CAR.width, CAR.length)
+  const outside = box.some((p) => Math.abs(p.x) > LOT_HALF.x || Math.abs(p.y) > LOT_HALF.y)
+  const touching = outside || lot.parked.some((o) => overlap(box, corners(o.x, o.y, o.heading, o.w, o.l)))
+  let hits = run.hits
+  if (touching) { // a bump: the car stops where it was
+    car = { ...run.car, v: 0, steer: car.steer, braking: false }
+    if (!run.contact) hits += 1
+  }
+  const t = lot.target
+  const inBay = box.every((p) => Math.abs(p.x - t.x) <= t.w / 2 && Math.abs(p.y - t.y) <= t.l / 2)
+  const straight = Math.abs(wrapAngle(car.heading - Math.PI)) < 0.18 // facing out of the bay: backed in
+  const parked = !touching && inBay && straight && Math.abs(car.v) < 0.3
+  const hold = parked ? run.hold + dt : 0
+  return { ...run, car, started, hits, contact: touching, hold, finished: hold >= 0.8, time: started ? run.time + dt : 0 }
+}
+
+// 100 points, minus 10 per bump and a little for every second over 45.
+export const parkingScore = (run) => Math.max(0, Math.round(100 - run.hits * 10 - Math.max(0, run.time - 45) * 0.8))
