@@ -23,7 +23,6 @@ export function HomePage() {
           <li>Pick your batch</li>
           <li>Book your classes online</li>
         </ul>
-        <div className="lane" aria-hidden="true" />
       </section>
       <section className="info-grid">
         <div className="card wide">
