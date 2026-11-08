@@ -6,6 +6,11 @@ export const PHONE = '7373515196'
 export const EMAIL = 'drivetomyschool@gmail.com'
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// Edit these figures to match the school's real numbers.
+const SINCE = 2013
+const STUDENTS_TAUGHT = '1,000+'
+const LICENCES_GOT = '800+'
+
 export function HomePage() {
   return (
     <>
@@ -22,6 +27,15 @@ export function HomePage() {
         <div className="lane" aria-hidden="true" />
       </section>
       <section className="info-grid">
+        <div className="card wide">
+          <h2>About us</h2>
+          <ul className="lines">
+            <li>Teaching driving since {SINCE}</li>
+            <li>{STUDENTS_TAUGHT} students taught to drive</li>
+            <li>{LICENCES_GOT} students helped to get their driving licence</li>
+            <li>Best driving school in Mahindra World City and the nearby areas</li>
+          </ul>
+        </div>
         <div className="card">
           <h2>Book online</h2>
           <ul className="lines">

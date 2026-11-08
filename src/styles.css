@@ -272,14 +272,7 @@ tr.editing td { background: var(--editing); }
 .site-brand img { border-radius: 6px; background: #fff; object-fit: contain; }
 .site-top-actions { display: flex; align-items: center; gap: 10px; }
 .student-corner { margin: 0; padding: 9px 16px; text-decoration: none; display: inline-block; white-space: nowrap; }
-.site-body { flex: 1; display: grid; grid-template-columns: 210px 1fr; }
-.site-menu {
-  display: flex; flex-direction: column; gap: 4px; padding: 18px 12px;
-  background: var(--surface); border-right: 1px solid var(--line);
-}
-.site-menu a { padding: 11px 14px; border-radius: 8px; color: var(--text); text-decoration: none; font-weight: 600; }
-.site-menu a:hover { background: var(--none-bg); }
-.site-menu a.active { background: var(--tab-active); color: #fff; }
+.site-body { flex: 1; }
 .site-content { padding: 28px clamp(16px, 4vw, 44px); max-width: 980px; width: 100%; }
 .site-content h1 { margin-top: 0; font-size: clamp(1.5rem, 3vw, 2rem); }
 .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
@@ -288,9 +281,6 @@ tr.editing td { background: var(--editing); }
 .contact p { font-size: 1.1rem; }
 .back-home { margin: 0 0 8px; font-size: 14px; }
 @media (max-width: 720px) {
-  .site-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .site-menu { flex-direction: row; align-items: center; align-self: start; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
-  .site-menu a { white-space: nowrap; flex: none; }
   .site-brand span { font-size: 1rem; }
   .site-top { flex-wrap: wrap; padding: 10px 14px; }
   .site-top-actions { flex-wrap: wrap; flex: 1 1 100%; justify-content: flex-start; }

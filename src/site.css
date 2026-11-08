@@ -28,10 +28,6 @@
 .site-top .ghost { color: #fff; border-color: rgba(255, 255, 255, .55); background: transparent; font-weight: 600; }
 
 /* left menu */
-.site-menu { background: var(--surface); border-right: 1px solid var(--line); }
-.site-menu a { font-family: var(--head); font-weight: 700; font-size: 1.2rem; border-radius: 6px; border-left: 5px solid transparent; }
-.site-menu a:hover { background: var(--none-bg); }
-.site-menu a.active { background: var(--tarmac); color: #fff; border-left-color: var(--lane); }
 
 .site-content h1 { font-family: var(--head); font-weight: 800; font-size: clamp(2rem, 4vw, 2.7rem); letter-spacing: .01em; }
 
@@ -76,8 +72,6 @@
 
 @media (max-width: 720px) {
   .site-brand { font-size: 1.25rem; }
-  .site-menu a { font-size: 1.1rem; border-left-width: 0; border-bottom: 4px solid transparent; border-radius: 6px 6px 0 0; }
-  .site-menu a.active { border-bottom-color: var(--lane); }
   .hero { padding-bottom: 52px; }
 }
 
@@ -136,3 +130,28 @@
 .drive-hud .exit { margin-left: 8px; background: transparent; color: #fff; border: 2px solid rgba(255, 255, 255, .6); border-radius: 8px; width: 38px; height: 38px; padding: 0; font-size: 1.1rem; }
 .game-overlay { z-index: 1; }
 .game.full .game-overlay { padding-bottom: 130px; }
+
+/* the menu hides behind a three-line button and slides in from the left */
+.site-top-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.menu-btn {
+  flex: none; width: 42px; height: 42px; padding: 0; margin: 0; display: grid; place-content: center; gap: 5px;
+  background: transparent; border: 2px solid rgba(255, 255, 255, .55); border-radius: 8px; cursor: pointer;
+}
+.menu-btn span { display: block; width: 20px; height: 3px; border-radius: 2px; background: #fff; }
+.menu-btn:hover { background: rgba(255, 255, 255, .12); }
+.menu-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(10, 14, 18, .55); }
+.site-menu {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 41; width: min(280px, 82vw);
+  display: flex; flex-direction: column; gap: 6px; padding: 18px 14px; overflow-y: auto;
+  background: var(--surface); border-right: 4px solid var(--lane);
+  transform: translateX(-102%); visibility: hidden; transition: transform .22s ease, visibility 0s .22s;
+}
+.site-menu.open { transform: none; visibility: visible; transition: transform .22s ease; }
+.site-menu .menu-title { font-family: var(--head); font-weight: 800; font-size: 1.3rem; margin: 2px 6px 10px; color: var(--text); }
+.site-menu a {
+  padding: 12px 14px; border-radius: 6px; color: var(--text); text-decoration: none;
+  font-family: var(--head); font-weight: 700; font-size: 1.35rem; border-left: 5px solid transparent;
+}
+.site-menu a:hover { background: var(--none-bg); }
+.site-menu a.active { background: var(--tarmac); color: #fff; border-left-color: var(--lane); }
+@media (prefers-reduced-motion: reduce) { .site-menu { transition: none; } }
