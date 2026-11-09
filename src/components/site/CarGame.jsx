@@ -6,6 +6,9 @@ import { Link } from 'react-router-dom'
 import { VIEWS, VIEW_LABEL } from '../../camera.js'
 import { draw3D, drawTop } from '../../render.js'
 import SteeringWheel from './SteeringWheel.jsx'
+import GearShifter from './GearShifter.jsx'
+import Gauge from './Gauge.jsx'
+import { createEngine } from '../../engineSound.js'
 
 const BEST_KEY = 'dsp-drive-best'
 
@@ -16,13 +19,15 @@ const SIDEWAYS = '(orientation: landscape) and (max-height: 520px) and (pointer:
 const wrapAngle = (d) => ((((d + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI
 
 const MODES = {
-  test: { label: 'Driving test', hint: 'One lap, cones, 60 km/h limit', view: 'chase' },
-  free: { label: 'Free drive', hint: 'No rules: just practise', view: 'chase' },
+  test: { label: 'Driving test', hint: 'One lap, cones, 60 km/h limit', view: 'cockpit' },
+  free: { label: 'Free drive', hint: 'No rules: just practise', view: 'cockpit' },
   park: { label: 'Reverse parking', hint: 'Back into the green bay', view: 'top' },
 }
 
 const readBest = () => { try { return JSON.parse(localStorage.getItem(BEST_KEY)) || {} } catch { return {} } }
 const saveBest = (b) => { try { localStorage.setItem(BEST_KEY, JSON.stringify(b)) } catch { /* private mode: the best is not kept */ } }
+// How fast the engine turns, 0 to 1: it climbs with the car's speed in a gear and falls back at each shift up.
+const engineRpm = (g, v, throttle) => (g > 0 ? 0.18 + 0.82 * Math.min(1, Math.max(0, Math.abs(v)) / GEAR_TOP[g]) : g < 0 ? 0.18 + 0.5 * Math.min(1, Math.abs(v) / 6) : 0.18 + 0.7 * throttle)
 const fmt = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`
 
 export default function CarGame() {
@@ -39,8 +44,10 @@ export default function CarGame() {
   const gearRef = useRef(0) // manual gearbox: -1 reverse, 0 neutral, 1 to 5
   const [note, setNote] = useState('')
   const noteTimer = useRef(0)
+  const engine = useRef(null)
+  const [muted, setMuted] = useState(false)
   const [phase, setPhase] = useState('ready') // ready | playing | done
-  const [hud, setHud] = useState({ speed: 0, gear: 'N', time: 0, count: 0, over: false, shift: false })
+  const [hud, setHud] = useState({ speed: 0, gear: 'N', gearNo: 0, rpm: 0.18, time: 0, count: 0, over: false, shift: false })
   const [result, setResult] = useState(null)
   const [best, setBest] = useState(readBest)
   const stageRef = useRef(null)
@@ -83,17 +90,25 @@ export default function CarGame() {
     return () => ro.disconnect()
   }, [])
 
+  useEffect(() => {
+    engine.current = createEngine()
+    const e = engine.current
+    return () => e.stop()
+  }, [])
+
   const start = useCallback(() => {
+    engine.current.start() // sound can only begin after a tap, and this is one
     runRef.current = mode === 'park' ? newParkingRun(lot) : newRun(track)
     touch.current = { gas: false, brake: false, wheel: null }
     gearRef.current = 0
     setNote('Shift up to gear 1 to move (▲ or E)')
     setResult(null)
-    setHud({ speed: 0, gear: 'N', time: 0, count: 0, over: false, shift: false })
+    setHud({ speed: 0, gear: 'N', gearNo: 0, rpm: 0.18, time: 0, count: 0, over: false, shift: false })
     setPhase('playing')
   }, [mode, lot, track])
 
   const toMenu = () => {
+    engine.current.stop()
     runRef.current = mode === 'park' ? newParkingRun(lot) : newRun(track)
     setPhase('ready')
   }
@@ -109,11 +124,9 @@ export default function CarGame() {
     if ((target < 0 || cur < 0) && target !== 0 && !stopped) { flash('Stop the car before reverse'); return }
     if (cur < 0 && target > 0 && !stopped) { flash('Stop the car first'); return }
     gearRef.current = target
-    setHud((h) => ({ ...h, gear: gearLabel(target) }))
+    setHud((h) => ({ ...h, gear: gearLabel(target), gearNo: target }))
     flash(target === 0 ? 'Neutral: the car rolls' : target < 0 ? 'Reverse' : `Gear ${target}`)
   }, [flash])
-
-  const shiftBy = useCallback((by) => shiftTo(gearRef.current + by), [shiftTo])
 
   const cycleView = useCallback(() => setView((v) => VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]), [])
 
@@ -155,6 +168,7 @@ export default function CarGame() {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       const inp = readInput()
+      engine.current.set(engineRpm(gearRef.current, runRef.current.car.v, inp.throttle), inp.throttle)
       const run = park
         ? stepParking(runRef.current, lot, inp, dt)
         : stepRun(runRef.current, track, inp, dt, { grip: WEATHER[weather].grip, free: mode === 'free' })
@@ -163,7 +177,7 @@ export default function CarGame() {
       if (now - lastHud > 90) {
         lastHud = now
         setHud({
-          speed: kmh(run.car.v), gear: gearLabel(gearRef.current), shift: gearRef.current > 0 && run.car.v > GEAR_TOP[gearRef.current] * 0.93,
+          speed: kmh(run.car.v), gear: gearLabel(gearRef.current), gearNo: gearRef.current, rpm: engineRpm(gearRef.current, run.car.v, inp.throttle), shift: gearRef.current > 0 && run.car.v > GEAR_TOP[gearRef.current] * 0.93,
           time: run.time, count: park ? run.hits : run.hit.length, over: mode === 'test' && Math.abs(run.car.v) > SPEED_LIMIT + 0.5,
         })
       }
@@ -176,6 +190,7 @@ export default function CarGame() {
           setResult({ time: run.time, cones: run.hit.length, grass: run.offroadTime, speeding: run.speedingTime, score: drivingScore(run) })
           setBest((b) => { const next = { ...b, test: b.test ? Math.min(b.test, run.time) : run.time }; saveBest(next); return next })
         }
+        engine.current.stop()
         setPhase('done')
         return
       }
@@ -224,13 +239,6 @@ export default function CarGame() {
     onContextMenu: (e) => e.preventDefault(),
   })
 
-  // A gear button reacts the moment a finger lands, so it works while other fingers hold the wheel and the pedals.
-  // Enter and Space on a focused button still work through the click event (detail 0).
-  const tap = (by) => ({
-    onPointerDown: (e) => { e.preventDefault(); shiftBy(by) },
-    onClick: (e) => { if (e.detail === 0) shiftBy(by) },
-  })
-
   const m = MODES[mode]
   const bestLine = mode === 'test' && best.test ? `Best time: ${fmt(best.test)}` : mode === 'park' && best.park ? `Best score: ${best.park} / 100` : ''
 
@@ -239,7 +247,10 @@ export default function CarGame() {
       <h1>Driving practice</h1>
       <div className={`game${full ? ' full' : ''}${phase === 'ready' ? ' idle' : ''}`}>
         <div className="drive-hud">
-          <div className={`speedo${hud.over ? ' over' : ''}`}><b>{hud.speed}</b><span>km/h</span></div>
+          <div className="dials">
+            <Gauge value={hud.speed} max={160} step={20} labelEvery={2} redFrom={mode === 'test' ? (SPEED_LIMIT * 3.6) / 160 : 1} text={String(hud.speed)} unit="km/h" warn={hud.over} label="Speed" />
+            <Gauge value={hud.rpm * 8} max={8} step={1} redFrom={0.84} text={gearLabel(hud.gearNo)} unit="x1000 rpm" warn={hud.shift} label="Engine speed" />
+          </div>
           <div className={`gear${hud.shift ? ' shift' : ''}`} aria-label={`Gear ${hud.gear}`}>{hud.gear}</div>
           {mode === 'test' && <div className="limit" aria-label="Speed limit 60"><span>60</span></div>}
           <div className="drive-stats">
@@ -255,6 +266,10 @@ export default function CarGame() {
             <button type="button" className="view-btn" onClick={cycleView} aria-label={`Camera: ${VIEW_LABEL[view]}. Change camera`}>
               📷 {VIEW_LABEL[view]}
             </button>
+          )}
+          {phase !== 'ready' && (
+            <button type="button" className="view-btn sound-btn" aria-pressed={muted} aria-label={muted ? 'Turn the engine sound on' : 'Turn the engine sound off'}
+              onClick={() => { const m = !muted; setMuted(m); engine.current.setMuted(m) }}>{muted ? '🔇' : '🔊'}</button>
           )}
           {phase === 'playing' && note && <div className="game-note" role="status">{note}</div>}
           {phase === 'playing' && hud.shift && <div className="game-note warn" role="status">Shift up</div>}
@@ -315,11 +330,7 @@ export default function CarGame() {
 
         <div className="drive-pad">
           <SteeringWheel onChange={(v) => { touch.current.wheel = v }} />
-          <div className="gear-stick" role="group" aria-label="Gears">
-            <button type="button" className="ghost" aria-label="Shift up" {...tap(1)}>▲</button>
-            <output aria-live="polite">{hud.gear}</output>
-            <button type="button" className="ghost" aria-label="Shift down" {...tap(-1)}>▼</button>
-          </div>
+          <GearShifter gear={hud.gearNo} onPick={shiftTo} />
           <div className="pad-pedals">
             <button type="button" className="ghost brake" aria-label="Brake" {...hold('brake')}>Brake</button>
             <button type="button" className="ghost gas" aria-label="Accelerate" {...hold('gas')}>Gas</button>

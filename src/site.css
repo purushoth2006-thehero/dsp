@@ -105,7 +105,7 @@
 
 .drive-pad { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; user-select: none; -webkit-user-select: none; touch-action: none; }
 .pad-pedals { display: flex; gap: 10px; align-items: flex-end; }
-.wheel { width: 128px; height: 128px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; flex: none; }
+.wheel { width: 150px; height: 150px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; flex: none; }
 .wheel { position: relative; }
 .wheel::after { content: ''; position: absolute; inset: -12px; } /* a larger area to grab, so a thumb that is a little off still turns the wheel */
 .wheel.held { cursor: grabbing; }
@@ -143,7 +143,7 @@
   background: rgba(20, 24, 28, .55); border: 2px solid rgba(255, 255, 255, .6); -webkit-touch-callout: none;
 }
 .game.full .pad-pedals { gap: 8px; }
-.game.full .wheel { width: 108px; height: 108px; pointer-events: auto; opacity: .92; }
+.game.full .wheel { width: min(46vw, 176px); height: min(46vw, 176px); pointer-events: auto; opacity: .95; }
 .game.full .pad-pedals .brake { min-width: 62px; border-color: #ff6b61; color: #ff8a82; }
 .game.full .pad-pedals .gas { border-color: #4ade80; color: #86efac; min-width: 72px; min-height: 100px; }
 .drive-hud .exit { margin-left: 8px; background: transparent; color: #fff; border: 2px solid rgba(255, 255, 255, .6); border-radius: 8px; width: 38px; height: 38px; padding: 0; font-size: 1.1rem; }
@@ -220,16 +220,8 @@
 @keyframes blink { 50% { opacity: .55; } }
 .game-note { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 2; background: rgba(20, 24, 28, .8); color: #fff; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: .9rem; white-space: nowrap; pointer-events: none; }
 .game-note.warn { top: 96px; background: #ffc400; color: #1d2227; }
-.gear-stick { display: grid; justify-items: center; align-self: flex-end; gap: 6px; user-select: none; -webkit-user-select: none; }
-.gear-stick output { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; border: 2px solid var(--lane); color: var(--lane); background: rgba(20, 24, 28, .7); font-family: var(--head); font-weight: 800; font-size: 1.5rem; }
-.drive-pad .gear-stick .ghost { min-width: 56px; min-height: 52px; padding: 0; font-size: 1.1rem; }
-.game.full .gear-stick .ghost { min-height: 50px; min-width: 54px; }
 .game.full .drive-pad { gap: 6px; }
-.game.full .gear-stick { align-self: flex-end; }
 @media (max-width: 380px) {
-  .game.full .wheel { width: 82px; height: 82px; }
-  .game.full .gear-stick .ghost { min-width: 46px; min-height: 44px; font-size: .95rem; }
-  .game.full .gear-stick output { width: 38px; height: 38px; }
   .game.full .drive-pad { padding-left: 8px; padding-right: 8px; }
   .game.full .pad-pedals { gap: 5px; }
   .game.full .pad-pedals .brake { min-width: 54px; font-size: .9rem; }
@@ -261,10 +253,7 @@
   .game-note { top: 44px; font-size: .8rem; padding: 4px 12px; }
   .game-note.warn { top: 80px; }
   .game.full .drive-pad { padding: 0 max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); justify-content: space-between; align-items: flex-end; }
-  .game.full .wheel { width: 96px; height: 96px; }
   .game.full .drive-pad .ghost { min-height: 60px; }
-  .game.full .gear-stick { position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%); grid-auto-flow: column; align-items: center; }
-  .game.full .gear-stick .ghost { min-height: 52px; min-width: 56px; }
   .game.full .pad-pedals .brake { min-width: 78px; min-height: 64px; }
   .game.full .pad-pedals .gas { min-width: 96px; min-height: 84px; }
   .game.full .game-overlay { padding: 8px 16px 8px; }
@@ -281,10 +270,63 @@
 }
 .game.full.idle .drive-hud { display: none; }
 @media (orientation: landscape) and (max-height: 380px) {
-  .game.full .wheel { width: 78px; height: 78px; }
-  .game.full .gear-stick .ghost { min-width: 42px; min-height: 40px; font-size: .9rem; }
-  .game.full .gear-stick output { width: 34px; height: 34px; font-size: 1.2rem; }
   .game.full .pad-pedals .brake { min-width: 60px; min-height: 52px; font-size: .9rem; }
   .game.full .pad-pedals .gas { min-width: 74px; min-height: 68px; font-size: .95rem; }
   .game.full .drive-pad .ghost { padding: 0 4px; }
+}
+
+/* dashboard dials */
+.dials { display: flex; gap: 6px; align-items: center; }
+.gauge { width: 74px; height: 74px; flex: none; display: block; }
+.gauge .needle { transition: transform .08s linear; }
+.drive-hud { flex-wrap: nowrap; }
+.drive-hud .gear { width: 38px; height: 38px; font-size: 1.3rem; }
+.sound-btn { left: auto; right: 8px; top: auto; bottom: 8px; min-width: 40px; padding: 4px 8px; }
+.game.full .sound-btn { left: 8px; right: auto; top: 54px; bottom: auto; }
+.game.full:not(.idle) .view-btn:not(.sound-btn) { top: 8px; }
+
+/* the gear lever: the usual H */
+.gear-h { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: 36px 22px 36px; gap: 4px; align-self: flex-end; user-select: none; -webkit-user-select: none; touch-action: none; padding: 6px; border-radius: 12px; background: rgba(20, 24, 28, .6); border: 2px solid rgba(255, 255, 255, .35); }
+.gear-h .slot { padding: 0; margin: 0; border-radius: 8px; border: 2px solid rgba(255, 255, 255, .45); background: rgba(255, 255, 255, .08); color: #fff; font-family: var(--head); font-weight: 800; font-size: 1.15rem; line-height: 1; touch-action: none; min-height: 0; min-width: 0; }
+.gear-h .slot.n { grid-column: 1 / -1; grid-row: 2; height: 22px; font-size: .85rem; }
+.gear-h .slot.rev { color: #ff8a82; }
+.gear-h .slot.on { background: var(--lane); border-color: var(--lane); color: #1d2227; box-shadow: 0 0 10px rgba(255, 196, 0, .6); }
+.drive-pad .gear-h .slot { min-width: 0; min-height: 0; }
+.game.full .drive-pad .gear-h .slot { min-width: 0; min-height: 0; padding: 0; border-radius: 8px; background: rgba(255, 255, 255, .1); color: #fff; }
+.game.full .drive-pad .gear-h .slot.on { background: var(--lane); color: #1d2227; }
+.game.full .drive-pad .gear-h .slot.rev:not(.on) { color: #ff8a82; }
+.game.full .gear-h { pointer-events: auto; }
+
+/* phone upright: the big wheel on the left, the gear lever above the pedals on the right */
+.game.full .drive-pad { display: grid; grid-template-columns: auto auto; grid-template-areas: "wheel shift" "wheel pedals"; justify-content: space-between; align-items: end; row-gap: 8px; }
+.game.full .drive-pad .wheel { grid-area: wheel; align-self: end; }
+.game.full .drive-pad .gear-h { grid-area: shift; justify-self: end; }
+.game.full .drive-pad .pad-pedals { grid-area: pedals; justify-self: end; }
+@media (max-width: 380px) { .gauge { width: 60px; height: 60px; } }
+@media (orientation: landscape) and (max-height: 520px) {
+  .game.full .drive-pad { display: flex; }
+  .game.full .drive-pad .wheel { width: min(44vh, 150px); height: min(44vh, 150px); }
+  .game.full .gauge { width: 52px; height: 52px; }
+  .game.full .dials { gap: 4px; }
+  .game.full .drive-hud { padding-bottom: 16px; }
+  .game.full:not(.idle) .view-btn:not(.sound-btn) { top: 62px; }
+  .game.full .sound-btn { top: 62px; left: 150px; }
+  .game-note { top: 62px; }
+  .game-note.warn { top: 96px; }
+}
+@media (orientation: landscape) and (max-height: 380px) {
+  .game.full .gear-h { grid-template-columns: repeat(3, 34px); grid-template-rows: 30px 18px 30px; padding: 4px; gap: 3px; }
+  .game.full .gear-h .slot { font-size: 1rem; }
+}
+
+/* a computer screen: a wide road view, with the wheel and pedals under it */
+@media (min-width: 821px) and (pointer: fine) {
+  .game { max-width: 860px; }
+  .game-stage { aspect-ratio: 16 / 9; }
+  .drive-pad { align-items: flex-end; }
+  .game-overlay.menu { display: grid; grid-template-columns: 1fr 1fr; align-content: center; align-items: start; justify-items: center; gap: 10px 28px; padding: 16px 56px 16px 24px; }
+  .game-overlay.menu h2 { grid-column: 1 / -1; }
+  .game-overlay.menu .menu-col { display: grid; gap: 8px; width: 100%; max-width: 380px; }
+  .game-overlay.menu .menu-col .choice { max-width: none; }
+  .game-overlay.menu .lines li { justify-content: flex-start; text-align: left; }
 }
