@@ -88,14 +88,14 @@ export function drawCarTop(ctx, car, bodyColor = '#c8202a', roofColor) {
 
 // ---------- top view ----------
 
-export function drawTop(ctx, scene, run, { W, H, weather, time, offroad }) {
+export function drawTop(ctx, scene, run, { W, H, weather, time, offroad, camHeading }) {
   const { car } = run
   ctx.fillStyle = scene.kind === 'lot' ? '#3a4047' : '#2d8a4e'
   ctx.fillRect(0, 0, W, H)
   ctx.save()
   if (scene.kind === 'track') {
     const scale = 8.5 - Math.min(Math.abs(car.v), 30) * 0.1 // zoom out a little at speed
-    ctx.translate(W / 2, H * 0.7); ctx.scale(scale, scale); ctx.rotate(-car.heading); ctx.translate(-car.x, -car.y)
+    ctx.translate(W / 2, H * 0.7); ctx.scale(scale, scale); ctx.rotate(-(camHeading ?? car.heading)); ctx.translate(-car.x, -car.y)
     drawTrackTop(ctx, scene.track, run)
   } else {
     const scale = Math.min((W - 16) / (LOT_HALF.x * 2), (H - 16) / (LOT_HALF.y * 2)) // the whole lot, north up
@@ -105,7 +105,7 @@ export function drawTop(ctx, scene, run, { W, H, weather, time, offroad }) {
   drawCarTop(ctx, car)
   ctx.restore()
 
-  if (scene.kind === 'track') drawMiniMap(ctx, scene.track, car, W)
+  if (scene.kind === 'track') drawMiniMap(ctx, scene.track, car, W, H)
   const light = scene.kind === 'track' ? { x: W / 2, y: H * 0.7, r: Math.max(W, H) * 0.55 } : { x: W / 2, y: H / 2, r: Math.max(W, H) * 0.7 }
   drawWeather(ctx, weather, W, H, time, light)
   if (offroad) { ctx.fillStyle = 'rgba(255,196,0,.95)'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Off the road: slow down and steer back', W / 2, 140) }
@@ -151,8 +151,9 @@ function drawLotTop(ctx, lot) {
   lot.parked.forEach((o) => drawCarTop(ctx, { x: o.x, y: o.y, heading: 0, steer: 0 }, CAR_COLORS[o.color % CAR_COLORS.length]))
 }
 
-function drawMiniMap(ctx, track, car, W) {
-  const mx = W - 96; const my = 10; const ms = 86
+function drawMiniMap(ctx, track, car, W, H) {
+  const ms = Math.min(86, H * 0.22)
+  const mx = W - ms - 10; const my = H < 480 ? 54 : 10 // lower on a phone held sideways, below the top bar
   const xs = track.pts.map((p) => p.x); const ys = track.pts.map((p) => p.y)
   const minX = Math.min(...xs); const minY = Math.min(...ys)
   const k = ms / Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY)
@@ -195,9 +196,9 @@ function drawBox(ctx, cam, x, y, heading, w, l, z0, h, color) {
   for (const fc of faces) fillPoly(ctx, projectPoly(cam, fc.pts), shade(color, fc.f))
 }
 
-export function draw3D(ctx, scene, run, { view, weather, W, H, time, wheel = true }) {
+export function draw3D(ctx, scene, run, { view, weather, W, H, time, wheel = true, camHeading }) {
   const { car } = run
-  const cam = makeCamera(view, car, W, H)
+  const cam = makeCamera(view, camHeading === undefined ? car : { ...car, heading: camHeading }, W, H)
   const pal = PALETTE[weather] ?? PALETTE.clear
 
   const sky = ctx.createLinearGradient(0, 0, 0, cam.horizon)
@@ -205,7 +206,7 @@ export function draw3D(ctx, scene, run, { view, weather, W, H, time, wheel = tru
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, cam.horizon + 1)
   ctx.fillStyle = pal.hills // hills far away; they slide sideways as the car turns
   ctx.beginPath(); ctx.moveTo(0, cam.horizon)
-  const shift = -car.heading * W * 1.1
+  const shift = -cam.heading * W * 1.1
   for (let x = 0; x <= W + 10; x += 10) ctx.lineTo(x, cam.horizon - (22 + 14 * Math.sin((x + shift) * 0.011) + 9 * Math.sin((x + shift) * 0.029)))
   ctx.lineTo(W, cam.horizon); ctx.closePath(); ctx.fill()
   const ground = ctx.createLinearGradient(0, cam.horizon, 0, H)

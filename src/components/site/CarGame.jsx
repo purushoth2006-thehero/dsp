@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   GEAR_TOP, SPEED_LIMIT, WEATHER, buildLot, buildTrack, drivingScore, gearLabel, kmh, newParkingRun, newRun, parkingScore, stepParking, stepRun,
 } from '../../drive.js'
+import { Link } from 'react-router-dom'
 import { VIEWS, VIEW_LABEL } from '../../camera.js'
 import { draw3D, drawTop } from '../../render.js'
 import SteeringWheel from './SteeringWheel.jsx'
@@ -10,6 +11,9 @@ const BEST_KEY = 'dsp-drive-best'
 
 // On a phone the game takes the whole screen, so the road and the controls are both in view and the page cannot scroll.
 const SMALL = '(max-width: 820px), (pointer: coarse)'
+// A phone held on its side: very little height, so the game fills the screen even at the menu.
+const SIDEWAYS = '(orientation: landscape) and (max-height: 520px) and (pointer: coarse)'
+const wrapAngle = (d) => ((((d + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI
 
 const MODES = {
   test: { label: 'Driving test', hint: 'One lap, cones, 60 km/h limit', view: 'chase' },
@@ -42,7 +46,9 @@ export default function CarGame() {
   const stageRef = useRef(null)
   const [size, setSize] = useState({ w: 420, h: 560 })
   const [small, setSmall] = useState(() => window.matchMedia(SMALL).matches)
-  const full = small && phase !== 'ready'
+  const [sideways, setSideways] = useState(() => window.matchMedia(SIDEWAYS).matches)
+  const full = small && (phase !== 'ready' || sideways)
+  const camH = useRef(0) // the camera heading trails the car a little, so turns swing smoothly instead of snapping
 
   const pickMode = (m) => {
     setMode(m)
@@ -52,9 +58,11 @@ export default function CarGame() {
 
   useEffect(() => {
     const mq = window.matchMedia(SMALL)
-    const on = () => setSmall(mq.matches)
+    const mq2 = window.matchMedia(SIDEWAYS)
+    const on = () => { setSmall(mq.matches); setSideways(mq2.matches) }
     mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
+    mq2.addEventListener('change', on)
+    return () => { mq.removeEventListener('change', on); mq2.removeEventListener('change', on) }
   }, [])
 
   // Lock the page behind the full-screen game so touching the controls never scrolls it.
@@ -130,8 +138,11 @@ export default function CarGame() {
     const ctx = canvas.getContext('2d')
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const { w, h } = size
-    const paint = (run, time) => {
-      const o = { view, weather, W: w, H: h, time, offroad: Boolean(run.offroad), wheel: !small }
+    const paint = (run, time, dt = 0) => {
+      // ease the camera round behind the car; the driver's seat follows more closely than the chase camera
+      if (dt === 0) camH.current = run.car.heading
+      else camH.current += wrapAngle(run.car.heading - camH.current) * (1 - Math.exp(-dt * (view === 'cockpit' ? 16 : 6.5)))
+      const o = { view, weather, W: w, H: h, time, offroad: Boolean(run.offroad), wheel: !small, camHeading: camH.current }
       if (view === 'top') drawTop(ctx, scene, run, o)
       else draw3D(ctx, scene, run, o)
     }
@@ -148,7 +159,7 @@ export default function CarGame() {
         ? stepParking(runRef.current, lot, inp, dt)
         : stepRun(runRef.current, track, inp, dt, { grip: WEATHER[weather].grip, free: mode === 'free' })
       runRef.current = run
-      paint(run, now / 1000)
+      paint(run, now / 1000, dt)
       if (now - lastHud > 90) {
         lastHud = now
         setHud({
@@ -226,7 +237,7 @@ export default function CarGame() {
   return (
     <>
       <h1>Driving practice</h1>
-      <div className={`game${full ? ' full' : ''}`}>
+      <div className={`game${full ? ' full' : ''}${phase === 'ready' ? ' idle' : ''}`}>
         <div className="drive-hud">
           <div className={`speedo${hud.over ? ' over' : ''}`}><b>{hud.speed}</b><span>km/h</span></div>
           <div className={`gear${hud.shift ? ' shift' : ''}`} aria-label={`Gear ${hud.gear}`}>{hud.gear}</div>
@@ -249,7 +260,9 @@ export default function CarGame() {
           {phase === 'playing' && hud.shift && <div className="game-note warn" role="status">Shift up</div>}
           {phase === 'ready' && (
             <div className="game-overlay menu">
+              {full && <Link className="menu-close" to="/" aria-label="Leave the game">✕</Link>}
               <h2>Choose a drive</h2>
+              <div className="menu-col">
               <div className="choice" role="group" aria-label="Drive">
                 {Object.entries(MODES).map(([key, v]) => (
                   <button key={key} type="button" className={`opt${mode === key ? ' on' : ''}`} aria-pressed={mode === key} onClick={() => pickMode(key)}>
@@ -267,6 +280,8 @@ export default function CarGame() {
                   <button key={v} type="button" className={`opt small${view === v ? ' on' : ''}`} aria-pressed={view === v} onClick={() => setView(v)}>{VIEW_LABEL[v]}</button>
                 ))}
               </div>
+              </div>
+              <div className="menu-col">
               <ul className="lines">
                 <li>Drag the wheel to steer, hold Gas to go</li>
                 <li>Manual gears: ▲ E up, ▼ Q down. Start in 1, go up as you speed up</li>
@@ -275,6 +290,7 @@ export default function CarGame() {
               </ul>
               {bestLine && <p>{bestLine}</p>}
               <button type="button" className="primary" onClick={start}>Start engine</button>
+              </div>
             </div>
           )}
           {phase === 'done' && result && (

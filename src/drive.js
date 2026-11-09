@@ -63,13 +63,22 @@ export function stepCar(c, inp, dt, offroad = false, gripScale = 1) {
   if (throttle === 0 && !reversing && Math.abs(v) < 0.05) v = 0
   v = clamp(v, -MAX_REVERSE, MAX_SPEED)
 
-  // The steering wheel turns gradually, and the wheels turn less at speed.
-  const rate = inp.steer === 0 ? 8 : inp.direct ? 14 : 4.5
-  const steer = c.steer + clamp((inp.steer ?? 0) - c.steer, -rate * dt, rate * dt)
+  // The steering wheel turns gradually. A held wheel is followed smoothly (it eases in and out instead of jumping), and the
+  // wheels turn less at speed. Small movements of the wheel make small, gentle turns.
+  const want = inp.direct ? Math.sign(inp.steer) * Math.abs(inp.steer) ** 1.3 : (inp.steer ?? 0)
+  let steer
+  if (inp.direct) steer = c.steer + (want - c.steer) * (1 - Math.exp(-13 * dt))
+  else {
+    const rate = inp.steer === 0 ? 8 : 4.5
+    steer = c.steer + clamp(want - c.steer, -rate * dt, rate * dt)
+  }
   const maxAngle = 0.62 / (1 + (Math.abs(v) / 14) ** 2) + 0.05
   let turn = (v / CAR.wheelbase) * Math.tan(steer * maxAngle)
-  const grip = (offroad ? 6 : 11) * gripScale // the most sideways acceleration the tyres can hold (less on a wet road)
-  if (Math.abs(turn * v) > grip) turn = (Math.sign(turn) * grip) / Math.abs(v) // beyond that the car understeers
+  // The tyres hold only so much sideways force (less on grass or a wet road). Near that limit the car slides wide a little
+  // at a time, with no sudden change.
+  const grip = (offroad ? 6 : 11) * gripScale
+  const lateral = Math.abs(turn * v)
+  if (lateral > 0) turn /= (1 + (lateral / grip) ** 4) ** 0.25
 
   const heading = c.heading + turn * dt
   return {

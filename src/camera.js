@@ -14,7 +14,7 @@ export function makeCamera(view, car, W, H) {
     x: car.x - s * back, y: car.y + c * back, heading: car.heading,
     height: view === 'chase' ? 3.3 : 1.25,
     horizon: H * (view === 'chase' ? 0.4 : 0.46),
-    focal: W * (view === 'chase' ? 0.95 : 0.85),
+    focal: Math.min(W, H * 1.15) * (view === 'chase' ? 0.95 : 0.85), // a wide, short screen (a phone on its side) must not zoom in
     W, H, s, c,
   }
 }
