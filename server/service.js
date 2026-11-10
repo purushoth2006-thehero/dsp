@@ -21,7 +21,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const str = (v) => (typeof v === 'string' ? v : '')
 const newId = (prefix) => prefix + randomUUID().replace(/-/g, '').slice(0, 12)
-const publicCustomer = ({ id, name, phone, package: pkg }) => ({ id, name, phone, package: packageId(pkg) })
+const publicCustomer = ({ id, name, phone, package: pkg, lessons }) => ({
+  id, name, phone, package: packageId(pkg), ...(packageId(pkg) === 'custom' ? { lessons: lessonsFor({ package: pkg, lessons }) } : {}),
+})
 const byName = (a, b) => a.name.localeCompare(b.name)
 
 // Locks make double-booking impossible even when two requests arrive at the same moment.
@@ -37,7 +39,7 @@ function isRealDate(iso) {
 
 function cleanCustomerForm(form) {
   const f = form && typeof form === 'object' ? form : {}
-  return { name: str(f.name), phone: str(f.phone), password: str(f.password), package: str(f.package) || DEFAULT_PACKAGE }
+  return { name: str(f.name), phone: str(f.phone), password: str(f.password), package: str(f.package) || DEFAULT_PACKAGE, lessons: Number(f.lessons) }
 }
 
 function parseDate(date) {
@@ -165,6 +167,7 @@ export function createService(store, { now = () => nowInZone() } = {}) {
         name: f.name.trim(),
         phone: normalizePhone(f.phone),
         package: packageId(f.package),
+        ...(f.package === 'custom' ? { lessons: f.lessons } : {}),
         passwordHash: await hashPassword(f.password),
         createdAt: new Date().toISOString(),
       }
@@ -182,9 +185,15 @@ export function createService(store, { now = () => nowInZone() } = {}) {
       if (packageChanged && (await appointments()).some((a) => a.customerId === id)) {
         throw new HttpError(409, 'The package can only be changed while the student has no lessons booked.')
       }
+      // A custom course can change length at any time, but never below the lessons already booked.
+      if (f.package === 'custom' && !packageChanged) {
+        const booked = (await appointments()).filter((a) => a.customerId === id && a.attendance !== ATTENDANCE.ABSENT).length
+        if (f.lessons < booked) throw new HttpError(409, `${booked} lessons are already booked, so the course cannot be shorter than that.`)
+      }
       const next = {
         ...existing,
         package: f.package,
+        ...(f.package === 'custom' ? { lessons: f.lessons } : { lessons: undefined }),
         name: f.name.trim(),
         phone: normalizePhone(f.phone),
         passwordHash: f.password ? await hashPassword(f.password) : existing.passwordHash,

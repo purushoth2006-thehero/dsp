@@ -1,5 +1,5 @@
 import useNow from '../ui/useNow.js'
-import { BRAND, byDateTime, formatDate, formatTime, isPast, packageOf } from '../rules.js'
+import { BRAND, byDateTime, formatDate, formatTime, isPast, packageLabel } from '../rules.js'
 
 // A bordered lesson-schedule table that only shows when printing (see the print rules in styles.css).
 export default function ScheduleSheet({ customer, appointments }) {
@@ -8,7 +8,7 @@ export default function ScheduleSheet({ customer, appointments }) {
   return (
     <section className="print-only">
       <h2>{BRAND}: lesson schedule</h2>
-      <p>{customer.name}{customer.phone ? `, ${customer.phone}` : ''} · {packageOf(customer).label}</p>
+      <p>{customer.name}{customer.phone ? `, ${customer.phone}` : ''} · {packageLabel(customer)}</p>
       <table className="stack">
         <thead>
           <tr><th>No.</th><th>Date</th><th>Time</th><th>Place</th><th>Attendance</th></tr>

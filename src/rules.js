@@ -7,13 +7,24 @@ export const BRAND = 'Sridhar Driving School'
 export const PACKAGES = {
   diamond: { id: 'diamond', label: 'Diamond (20 lessons)', lessons: 20 },
   gold: { id: 'gold', label: 'Gold (10 lessons)', lessons: 10 },
+  // The admin types the number of classes (stored on the customer as `lessons`).
+  custom: { id: 'custom', label: 'Custom (set the number of classes)', lessons: null },
 }
+export const MAX_CUSTOM_LESSONS = 100
+export const DEFAULT_CUSTOM_LESSONS = 15
+export const isValidLessonCount = (n) => Number.isInteger(n) && n >= 1 && n <= MAX_CUSTOM_LESSONS
 export const DEFAULT_PACKAGE = 'diamond'
 // Customers saved before the packages were renamed.
 const LEGACY_PACKAGES = { standard: 'diamond', ladies: 'gold' }
 export const packageId = (id) => (PACKAGES[id] ? id : (LEGACY_PACKAGES[id] ?? DEFAULT_PACKAGE))
 export const packageOf = (customer) => PACKAGES[packageId(customer?.package)]
-export const lessonsFor = (customer) => packageOf(customer).lessons
+export const lessonsFor = (customer) => {
+  const pkg = packageOf(customer)
+  if (pkg.id !== 'custom') return pkg.lessons
+  return isValidLessonCount(Number(customer?.lessons)) ? Number(customer.lessons) : DEFAULT_CUSTOM_LESSONS
+}
+// The package as shown to people, e.g. "Diamond (20 lessons)" or "Custom (12 lessons)".
+export const packageLabel = (customer) => (packageId(customer?.package) === 'custom' ? `Custom (${lessonsFor(customer)} lessons)` : packageOf(customer).label)
 // A customer booking for themselves may hold at most this many upcoming lessons at once.
 export const MAX_UPCOMING_PER_CUSTOMER = 5
 export const TIME_SLOTS = ['06:00', '07:30', '09:00', '10:30', '12:30', '16:30']
@@ -105,6 +116,7 @@ export function validateCustomer(form, customers, { ignoreId = null, requirePass
   if (String(form.name ?? '').trim().length > 80) return 'The name is too long (80 characters at most).'
   if (!isValidPhone(form.phone)) return 'Enter a valid 10-digit mobile number, e.g. 9876543210.'
   if (form.package !== undefined && !PACKAGES[form.package]) return 'Please choose a package.'
+  if (form.package === 'custom' && !isValidLessonCount(Number(form.lessons))) return `Enter the number of classes, from 1 to ${MAX_CUSTOM_LESSONS}.`
 
   const password = form.password ?? ''
   if ((requirePassword || password) && password.length < MIN_PASSWORD) {

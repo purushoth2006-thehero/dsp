@@ -8,7 +8,7 @@ import { Field } from '../../ui/Field.jsx'
 import SortBar from '../../ui/SortBar.jsx'
 import CustomerForm from '../CustomerForm.jsx'
 import ScheduleSheet from '../ScheduleSheet.jsx'
-import { ATTENDANCE, normalizePhone, packageOf, sortRows } from '../../rules.js'
+import { ATTENDANCE, lessonsFor, normalizePhone, packageLabel, sortRows } from '../../rules.js'
 
 const SORTS = [
   { key: 'name', label: 'Name' },
@@ -21,7 +21,7 @@ const SORTS = [
 const KEYS = {
   name: (c) => c.name,
   mobile: (c) => c.phone,
-  package: (c) => packageOf(c).lessons,
+  package: (c) => lessonsFor(c),
   total: (c) => c.total,
   present: (c) => c.present,
   absent: (c) => c.absent,
@@ -112,8 +112,8 @@ export default function Customers() {
               <tr key={c.id}>
                 <td data-label="Name">{c.name}</td>
                 <td data-label="Mobile">{c.phone}</td>
-                <td data-label="Package">{packageOf(c).label.split(' (')[0]}</td>
-                <td data-label="Lessons">{c.total}/{packageOf(c).lessons}</td>
+                <td data-label="Package">{packageLabel(c).split(' (')[0]}</td>
+                <td data-label="Lessons">{c.total}/{lessonsFor(c)}</td>
                 <td data-label="Present"><span className="badge present">{c.present}</span></td>
                 <td data-label="Absent"><span className="badge absent">{c.absent}</span></td>
                 <td className="row-actions">
@@ -130,7 +130,7 @@ export default function Customers() {
       {editing && (
         <Modal title={`Edit ${editing.name}`} onClose={() => setEditing(null)}>
           <CustomerForm
-            initial={{ name: editing.name, phone: editing.phone, package: editing.package }}
+            initial={{ name: editing.name, phone: editing.phone, package: editing.package, lessons: editing.lessons }}
             packageLocked={data.appointments.some((a) => a.customerId === editing.id)}
             requirePassword={false}
             submitLabel="Save changes"

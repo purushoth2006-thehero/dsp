@@ -6,7 +6,7 @@ import LessonForm from './LessonForm.jsx'
 import ScheduleSheet from './ScheduleSheet.jsx'
 import useNow from '../ui/useNow.js'
 import {
-  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, byDateTime, formatDate, formatTime, isPast, lessonsFor, packageOf,
+  ATTENDANCE, MAX_UPCOMING_PER_CUSTOMER, byDateTime, formatDate, formatTime, isPast, lessonsFor, packageLabel,
 } from '../rules.js'
 
 // Customers book, move and cancel their own lessons and follow their progress.
@@ -61,7 +61,7 @@ export default function CustomerPortal() {
         <section className="card no-print">
           <h2>Hello, {customer?.name}</h2>
           <p className="muted">
-            Book your lessons below (today or tomorrow only). Your package is {packageOf(customer).label}; your course is {TOTAL_LESSONS} lessons, and your profile is removed
+            Book your lessons below (today or tomorrow only). Your package is {packageLabel(customer)}; your course is {TOTAL_LESSONS} lessons, and your profile is removed
             automatically once you have attended all {TOTAL_LESSONS}.
           </p>
         </section>

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Field, PasswordInput } from '../ui/Field.jsx'
-import { DEFAULT_PACKAGE, MIN_PASSWORD, PACKAGES, packageId } from '../rules.js'
+import { DEFAULT_CUSTOM_LESSONS, DEFAULT_PACKAGE, MAX_CUSTOM_LESSONS, MIN_PASSWORD, PACKAGES, packageId } from '../rules.js'
 
-const EMPTY = { name: '', phone: '', password: '', package: DEFAULT_PACKAGE }
+const EMPTY = { name: '', phone: '', password: '', package: DEFAULT_PACKAGE, lessons: DEFAULT_CUSTOM_LESSONS }
 
 // Used by the admin to add and edit customers.
 // onSubmit(form) may be async and must resolve to { ok, error }.
@@ -35,12 +35,17 @@ export default function CustomerForm({
       </Field>
       <Field
         label="Package"
-        hint={packageLocked ? 'The package cannot be changed once lessons are booked.' : 'Diamond is 20 lessons, Gold is 10 lessons.'}
+        hint={packageLocked ? 'The package cannot be changed once lessons are booked.' : 'Diamond is 20 lessons, Gold is 10 lessons. Choose Custom to type any number of classes.'}
       >
         <select value={packageId(form.package)} onChange={set('package')} disabled={packageLocked}>
           {Object.values(PACKAGES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
       </Field>
+      {packageId(form.package) === 'custom' && (
+        <Field label="Number of classes" hint={`Any number from 1 to ${MAX_CUSTOM_LESSONS}. The profile is removed after the last class.`}>
+          <input type="number" inputMode="numeric" min="1" max={MAX_CUSTOM_LESSONS} step="1" value={form.lessons ?? ''} onChange={set('lessons')} required />
+        </Field>
+      )}
       <Field
         label={requirePassword ? 'Password' : 'New password'}
         hint={requirePassword

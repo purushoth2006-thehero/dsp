@@ -636,6 +636,32 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect((await admin.call('POST', '/api/customers', { name: 'Bad Pkg', phone: '9000000002', password: 'secret123', package: 'vip' })).status).toBe(400)
   })
 
+  it('lets the admin set any number of classes with a custom package', async () => {
+    const admin = await adminBrowser()
+    const body = (extra) => ({ name: 'Custom Student', phone: '9000000077', password: 'secret123', package: 'custom', ...extra })
+    expect((await admin.call('POST', '/api/customers', body({ lessons: 0 }))).status).toBe(400)
+    expect((await admin.call('POST', '/api/customers', body({ lessons: 101 }))).status).toBe(400)
+    expect((await admin.call('POST', '/api/customers', body({ lessons: 2.5 }))).status).toBe(400)
+    expect((await admin.call('POST', '/api/customers', body({}))).status).toBe(400)
+    const made = await admin.call('POST', '/api/customers', body({ lessons: 2 }))
+    expect(made.status).toBe(201)
+    const c = made.body.customer
+    expect(c.package).toBe('custom')
+    expect(c.lessons).toBe(2)
+    // The course is two classes long: a third cannot be booked.
+    expect((await book(admin, c.id, { time: '06:00' })).status).toBe(201)
+    expect((await book(admin, c.id, { date: FUTURE2, time: '06:00', place: PLACES[1] })).status).toBe(201)
+    expect((await book(admin, c.id, { date: '2026-10-24', time: '06:00', place: PLACES[2] })).status).toBe(409)
+    // It can be made longer, but not shorter than what is booked.
+    const form = (lessons) => ({ name: c.name, phone: c.phone, package: 'custom', lessons })
+    expect((await admin.call('PUT', `/api/customers/${c.id}`, form(1))).status).toBe(409)
+    const longer = await admin.call('PUT', `/api/customers/${c.id}`, form(12))
+    expect(longer.status).toBe(200)
+    expect(longer.body.customer.lessons).toBe(12)
+    // Diamond and Gold carry no lesson count of their own.
+    expect((await addCustomer(admin, { package: 'gold', lessons: 99 })).lessons).toBeUndefined()
+  })
+
   it('lets the place be typed, ignoring capitals and extra spaces when checking for clashes', async () => {
     const admin = await adminBrowser()
     const a = await addCustomer(admin)
