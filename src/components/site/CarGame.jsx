@@ -54,7 +54,7 @@ export default function CarGame() {
   const [size, setSize] = useState({ w: 420, h: 560 })
   const [small, setSmall] = useState(() => window.matchMedia(SMALL).matches)
   const [sideways, setSideways] = useState(() => window.matchMedia(SIDEWAYS).matches)
-  const full = small && (phase !== 'ready' || sideways)
+  const full = !small || phase !== 'ready' || sideways // a computer always plays full screen
   const camH = useRef(0) // the camera heading trails the car a little, so turns swing smoothly instead of snapping
 
   const pickMode = (m) => {
@@ -93,11 +93,12 @@ export default function CarGame() {
   useEffect(() => {
     engine.current = createEngine()
     const e = engine.current
-    return () => e.stop()
+    return () => { e.stop(); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}) }
   }, [])
 
   const start = useCallback(() => {
     engine.current.start() // sound can only begin after a tap, and this is one
+    if (!window.matchMedia(SMALL).matches && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}) // a computer: hide the browser bars too
     runRef.current = mode === 'park' ? newParkingRun(lot) : newRun(track)
     touch.current = { gas: false, brake: false, wheel: null }
     gearRef.current = 0
@@ -155,7 +156,7 @@ export default function CarGame() {
       // ease the camera round behind the car; the driver's seat follows more closely than the chase camera
       if (dt === 0) camH.current = run.car.heading
       else camH.current += wrapAngle(run.car.heading - camH.current) * (1 - Math.exp(-dt * (view === 'cockpit' ? 16 : 6.5)))
-      const o = { view, weather, W: w, H: h, time, offroad: Boolean(run.offroad), wheel: !small, camHeading: camH.current }
+      const o = { view, weather, W: w, H: h, time, offroad: Boolean(run.offroad), wheel: false, camHeading: camH.current }
       if (view === 'top') drawTop(ctx, scene, run, o)
       else draw3D(ctx, scene, run, o)
     }

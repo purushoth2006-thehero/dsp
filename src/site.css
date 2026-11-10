@@ -34,9 +34,13 @@
 /* hero: a road scene (public/hero-road.svg) behind the title */
 .hero {
   position: relative; overflow: hidden; margin-bottom: 22px; padding: 30px clamp(18px, 4vw, 36px) 58px;
-  min-height: clamp(430px, 56vw, 480px);
+  /* the whole width of the screen and as tall as the screen under the top bar */
+  width: 100vw; margin: -28px 0 22px calc(-1 * clamp(16px, 4vw, 44px)); border-radius: 0;
+  padding-inline: max(clamp(18px, 4vw, 36px), calc((100vw - 980px) / 2));
+  min-height: max(430px, calc(100svh - 70px));
+  display: flex; flex-direction: column; justify-content: center;
   background: linear-gradient(180deg, rgba(10, 16, 24, .72), rgba(10, 16, 24, 0) 58%) , var(--tarmac) url('/hero-road.svg') 62% bottom / cover no-repeat;
-  color: #fff; border-radius: 10px;
+  color: #fff;
 }
 .hero-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .hero h1 { margin: 0; color: #fff; font-family: var(--head); font-weight: 800; font-size: clamp(2.3rem, 7vw, 4rem); line-height: .98; letter-spacing: .005em; }
@@ -235,7 +239,7 @@
 .menu-close { position: absolute; right: 10px; top: 10px; width: 40px; height: 40px; display: grid; place-items: center; border: 2px solid rgba(255, 255, 255, .6); border-radius: 8px; color: #fff !important; text-decoration: none; font-size: 1.1rem; }
 
 /* a phone held on its side: the road fills the screen, the numbers sit along the top, the controls in the two bottom corners */
-@media (orientation: landscape) and (max-height: 520px) {
+@media ((orientation: landscape) and (max-height: 520px)), ((min-width: 821px) and (pointer: fine)) {
   .game.full { padding: 0; }
   .game.full .game-stage { position: absolute; inset: 0; flex: none; }
   .game.full .drive-hud {
@@ -303,7 +307,7 @@
 .game.full .drive-pad .gear-h { grid-area: shift; justify-self: end; }
 .game.full .drive-pad .pad-pedals { grid-area: pedals; justify-self: end; }
 @media (max-width: 380px) { .gauge { width: 60px; height: 60px; } }
-@media (orientation: landscape) and (max-height: 520px) {
+@media ((orientation: landscape) and (max-height: 520px)), ((min-width: 821px) and (pointer: fine)) {
   .game.full .drive-pad { display: flex; }
   .game.full .drive-pad .wheel { width: min(44vh, 150px); height: min(44vh, 150px); }
   .game.full .gauge { width: 52px; height: 52px; }
@@ -330,3 +334,22 @@
   .game-overlay.menu .menu-col .choice { max-width: none; }
   .game-overlay.menu .lines li { justify-content: flex-start; text-align: left; }
 }
+
+/* a computer, full screen: bigger controls and dials than a phone */
+@media (min-width: 821px) and (pointer: fine) {
+  .game.full .drive-pad .wheel { width: min(40vh, 230px); height: min(40vh, 230px); }
+  .game.full .gauge { width: 84px; height: 84px; }
+  .game.full .view-btn:not(.sound-btn), .game.full:not(.idle) .view-btn:not(.sound-btn) { top: 104px; font-size: .9rem; }
+  .game.full .sound-btn { top: 104px; left: 160px; }
+  .game-note { top: 104px; font-size: .95rem; }
+  .game-note.warn { top: 144px; }
+  .game.full .drive-hud { padding-bottom: 22px; }
+  .game.full .speedo b, .game.full .drive-stats b { font-size: 1.6rem; }
+  .game.full .pad-pedals .brake { min-width: 96px; min-height: 80px; }
+  .game.full .pad-pedals .gas { min-width: 116px; min-height: 110px; }
+  .game.full .gear-h { grid-template-columns: repeat(3, 46px); grid-template-rows: 42px 24px 42px; }
+  .game.full .drive-pad { padding-bottom: 18px; }
+  .game.full .drive-pad .ghost { font-size: 1.05rem; }
+}
+
+.site { overflow-x: clip; }
