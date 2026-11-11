@@ -353,3 +353,5 @@
 }
 
 .site { overflow-x: clip; }
+.report-actions button.social-btn { font: inherit; cursor: pointer; }
+.report-actions button.social-btn:disabled { opacity: .5; cursor: not-allowed; }

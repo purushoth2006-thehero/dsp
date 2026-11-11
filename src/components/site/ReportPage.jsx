@@ -24,6 +24,20 @@ export default function ReportPage() {
   const mailto = `mailto:${OWNER_EMAIL}?subject=${q(subject)}&body=${q(body)}`
   const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${q(OWNER_EMAIL)}&su=${q(subject)}&body=${q(body)}`
   const block = (e) => { if (!ready) e.preventDefault() }
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    const text = `To: ${OWNER_EMAIL}\nSubject: ${subject}\n\n${body}`
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch { // no clipboard permission: select the text the old way
+      const t = document.createElement('textarea')
+      t.value = text; document.body.appendChild(t); t.select()
+      try { document.execCommand('copy') } catch { /* the person can copy by hand */ }
+      t.remove()
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <>
@@ -46,9 +60,11 @@ export default function ReportPage() {
           </Field>
           {!ready && <p className="field-hint">Write at least 10 characters to send.</p>}
           <div className="report-actions">
-          <a className="primary social-btn" href={mailto} onClick={block} aria-disabled={!ready}>Send by email</a>
-          <a className="ghost social-btn" href={gmail} target="_blank" rel="noopener noreferrer" onClick={block} aria-disabled={!ready}>Open in Gmail</a>
+            <a className="primary social-btn" href={gmail} target="_blank" rel="noopener noreferrer" onClick={block} aria-disabled={!ready}>Send with Gmail</a>
+            <a className="ghost social-btn" href={mailto} onClick={block} aria-disabled={!ready}>Open my mail app</a>
+            <button type="button" className="ghost social-btn" onClick={copy} disabled={!ready}>{copied ? 'Copied' : 'Copy message'}</button>
           </div>
+          <p className="field-hint">On a computer, Gmail is the easiest. "Open my mail app" only works if a mail app is set up. You can also copy the message and email it to {OWNER_EMAIL}.</p>
         </form>
       </section>
     </>
