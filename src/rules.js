@@ -27,7 +27,7 @@ export const lessonsFor = (customer) => {
 export const packageLabel = (customer) => (packageId(customer?.package) === 'custom' ? `Custom (${lessonsFor(customer)} lessons)` : packageOf(customer).label)
 // A customer booking for themselves may hold at most this many upcoming lessons at once.
 export const MAX_UPCOMING_PER_CUSTOMER = 5
-export const TIME_SLOTS = ['06:00', '07:30', '09:00', '10:30', '12:30', '16:30']
+export const TIME_SLOTS = ['07:30', '09:00', '10:30', '12:30', '16:30']
 // Suggested places. A lesson's place is typed by whoever books it, so any name is allowed.
 export const PLACES = ['Mcity_Petrol_Bunk', 'ZeroPoint', 'Potheri']
 export const cleanPlace = (v) => String(v ?? '').trim().replace(/\s+/g, ' ')

@@ -649,9 +649,9 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect(c.package).toBe('custom')
     expect(c.lessons).toBe(2)
     // The course is two classes long: a third cannot be booked.
-    expect((await book(admin, c.id, { time: '06:00' })).status).toBe(201)
-    expect((await book(admin, c.id, { date: FUTURE2, time: '06:00', place: PLACES[1] })).status).toBe(201)
-    expect((await book(admin, c.id, { date: '2026-10-24', time: '06:00', place: PLACES[2] })).status).toBe(409)
+    expect((await book(admin, c.id, { time: '07:30' })).status).toBe(201)
+    expect((await book(admin, c.id, { date: FUTURE2, time: '07:30', place: PLACES[1] })).status).toBe(201)
+    expect((await book(admin, c.id, { date: '2026-10-24', time: '07:30', place: PLACES[2] })).status).toBe(409)
     // It can be made longer, but not shorter than what is booked.
     const form = (lessons) => ({ name: c.name, phone: c.phone, package: 'custom', lessons })
     expect((await admin.call('PUT', `/api/customers/${c.id}`, form(1))).status).toBe(409)
@@ -660,6 +660,13 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     expect(longer.body.customer.lessons).toBe(12)
     // Diamond and Gold carry no lesson count of their own.
     expect((await addCustomer(admin, { package: 'gold', lessons: 99 })).lessons).toBeUndefined()
+  })
+
+  it('no longer offers the 6:00 batch', async () => {
+    const admin = await adminBrowser()
+    const c = await addCustomer(admin)
+    expect((await book(admin, c.id, { time: '06:00' })).status).toBe(400)
+    expect((await book(admin, c.id, { time: '07:30' })).status).toBe(201)
   })
 
   it('lets the place be typed, ignoring capitals and extra spaces when checking for clashes', async () => {
@@ -701,13 +708,13 @@ describe.each(Object.entries(stores))('API with the %s', (_name, makeStore) => {
     const people = []
     for (let i = 0; i < 5; i += 1) people.push(await addCustomer(admin))
 
-    const results = await Promise.all(people.map((p) => book(admin, p.id, { date: FUTURE2, time: '06:00', place: PLACES[2] })))
+    const results = await Promise.all(people.map((p) => book(admin, p.id, { date: FUTURE2, time: '07:30', place: PLACES[2] })))
     const statuses = results.map((r) => r.status).sort()
     expect(statuses.filter((s) => s === 201)).toHaveLength(1)
     expect(statuses.filter((s) => s === 409)).toHaveLength(4)
 
     const stored = (await admin.call('GET', '/api/session')).body.appointments
-    expect(stored.filter((a) => a.date === FUTURE2 && a.time === '06:00')).toHaveLength(1)
+    expect(stored.filter((a) => a.date === FUTURE2 && a.time === '07:30')).toHaveLength(1)
   })
 
   it('stops the same customer being double-booked by simultaneous requests', async () => {
